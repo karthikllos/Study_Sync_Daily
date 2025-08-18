@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafb; /* Light gray background like FluxCRM */
+  --foreground: #1f2937; /* Darker text for better contrast */
+  --accent-from: #10b981; /* emerald-500 - matches the green cards */
+  --accent-to: #059669; /* emerald-600 - deeper green */
+  --accent-border: rgba(16, 185, 129, 0.2);
+  --accent-ring: rgba(16, 185, 129, 0.4);
+  --accent-shadow: rgba(16, 185, 129, 0.25);
+  --accent-solid: #059669; /* emerald-600 */
+  --surface: #ffffff; /* White cards */
+  --surface-2: #f1f5f9; /* Light slate background for subtle elements */
+  --surface-3: #e2e8f0; /* Even lighter for borders/dividers */
+  --input-bg: #ffffff;
+  --border: rgba(15, 23, 42, 0.08); /* Softer borders */
+  --divide: rgba(15, 23, 42, 0.05);
+  --muted: #64748b; /* slate-500 for muted text */
+  --success: #10b981; /* emerald-500 for success states */
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --chart-primary: #10b981; /* Primary chart color */
+  --chart-secondary: #6ee7b7; /* Light green for secondary data */
+  --progress-bg: #e5e7eb; /* Light gray for progress backgrounds */
+  --teal-accent: #14b8a6; /* teal-500 for the teal elements in dashboard */
 }
 
 @theme inline {
@@ -12,11 +31,45 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.light {
+  --background: #f8fafb; /* Light gray background like FluxCRM */
+  --foreground: #1f2937; /* Darker text for better contrast */
+  --accent-from: #10b981; /* emerald-500 - matches the green cards */
+  --accent-to: #059669; /* emerald-600 - deeper green */
+  --accent-border: rgba(16, 185, 129, 0.2);
+  --accent-ring: rgba(16, 185, 129, 0.4);
+  --accent-shadow: rgba(16, 185, 129, 0.25);
+  --accent-solid: #059669; /* emerald-600 */
+  --surface: #ffffff; /* White cards */
+  --surface-2: #f1f5f9; /* Light slate background for subtle elements */
+  --surface-3: #e2e8f0; /* Even lighter for borders/dividers */
+  --input-bg: #ffffff;
+  --border: rgba(15, 23, 42, 0.08); /* Softer borders */
+  --divide: rgba(15, 23, 42, 0.05);
+  --muted: #64748b; /* slate-500 for muted text */
+  --success: #10b981; /* emerald-500 for success states */
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --chart-primary: #10b981; /* Primary chart color */
+  --chart-secondary: #6ee7b7; /* Light green for secondary data */
+  --progress-bg: #e5e7eb; /* Light gray for progress backgrounds */
+  --teal-accent: #14b8a6; /* teal-500 for the teal elements in dashboard */
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --accent-from: #ec4899; /* fuchsia-500 */
+  --accent-to: #a855f7; /* purple-500 */
+  --accent-border: rgba(236, 72, 153, 0.2);
+  --accent-ring: rgba(236, 72, 153, 0.4);
+  --accent-shadow: rgba(236, 72, 153, 0.35);
+  --accent-solid: #ec4899; /* fuchsia-500 */
+  --surface: #0f0f1a;
+  --surface-2: #151526;
+  --input-bg: #151526;
+  --border: rgba(255,255,255,0.12);
+  --divide: rgba(255,255,255,0.1);
+  --muted: #94a3b8; /* slate-400 */
 }
 
 body {
@@ -42,60 +95,131 @@ body {
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
-
+  
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
   }
+  
+  /* FluxCRM inspired utility classes */
+  .fluxcrm-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .fluxcrm-button-primary {
+    background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+    color: white;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px var(--accent-shadow);
+    transition: all 0.2s ease;
+  }
+  
+  .fluxcrm-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px var(--accent-shadow);
+  }
+  
+  .fluxcrm-progress-bar {
+    background: var(--progress-bg);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  
+  .fluxcrm-progress-fill {
+    background: linear-gradient(90deg, var(--accent-from), var(--teal-accent));
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+  
+  .fluxcrm-metric-card {
+    background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .fluxcrm-metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transform: translate(30px, -30px);
+  }
+  
+  .fluxcrm-chart-tooltip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 14px;
+  }
 }
 
-/* globals.css or styles/globals.css */
-
+/* Updated button-64 to match FluxCRM aesthetic */
 .button-64 {
   align-items: center;
-  background-image: linear-gradient(144deg, #AF40FF, #5B42F3 50%, #00DDEB);
+  background-image: linear-gradient(135deg, #10b981, #14b8a6, #06b6d4);
   border: 0;
-  border-radius: 8px;
-  box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+  border-radius: 12px;
+  box-shadow: rgba(16, 185, 129, 0.25) 0 8px 24px -4px;
   box-sizing: border-box;
   color: #FFFFFF;
   display: flex;
-  font-family: Phantomsans, sans-serif;
-  font-size: 20px;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
   justify-content: center;
-  line-height: 1em;
+  line-height: 1.5;
   max-width: 100%;
   min-width: 140px;
-  padding: 3px;
+  padding: 2px;
   text-decoration: none;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .button-64:active,
 .button-64:hover {
   outline: 0;
+  transform: translateY(-1px);
+  box-shadow: rgba(16, 185, 129, 0.35) 0 12px 32px -4px;
 }
 
 .button-64 span {
-  background-color: rgb(5, 6, 45);
-  padding: 16px 24px;
-  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 14px 28px;
+  border-radius: 10px;
   width: 100%;
   height: 100%;
-  transition: 300ms;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
 }
 
 .button-64:hover span {
-  background: none;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
 }
 
 @media (min-width: 768px) {
   .button-64 {
-    font-size: 24px;
-    min-width: 196px;
+    font-size: 18px;
+    min-width: 180px;
   }
 }

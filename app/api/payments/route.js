@@ -3,6 +3,8 @@ import Payment from "@/models/Payment";
 import User from "@/models/user";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const username = searchParams.get("username");
@@ -19,7 +21,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const payments = await Payment.find({ to_user: receiver._id }).sort({ amount: -1 }).lean();
+    const payments = await Payment.find({ to_user: receiver._id }).sort({ createdAt: -1 }).lean();
 
     return NextResponse.json(payments, { status: 200 });
   } catch (err) {

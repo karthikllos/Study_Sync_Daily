@@ -1,8 +1,8 @@
 import React from "react";
 const Footer = () => {
     return (
-        <div className="bg-gray-950 text-white text-center py-4">
-            <p>Copyright &copy; 2025 Get Me A Coffee</p>
+        <div className="text-[color:var(--foreground)] text-center py-6 bg-[var(--background)] border-t border-[color:var(--accent-border)]">
+            <p className="text-sm text-[color:var(--muted)]">© 2025 Get Me A Coffee</p>
         </div>
     )
 }
