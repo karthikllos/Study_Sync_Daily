@@ -1,11 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import Dashboard from "../components/Dashboard";
 
 export default function Home() {
+  const { data: session } = useSession();
   const [supporters, setSupporters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   // Load real payment data from API
   useEffect(() => {
@@ -50,6 +54,25 @@ export default function Home() {
     return () =>
       window.removeEventListener("payments-updated", handlePaymentUpdate);
   }, []);
+
+  // Fetch user profile to determine if user is a creator
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (session?.user?.email) {
+        try {
+          const res = await fetch("/api/creator/profile");
+          if (res.ok) {
+            const profile = await res.json();
+            setUserProfile(profile);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user profile:", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [session]);
 
   return (
     <main className="relative min-h-[100vh] flex flex-col items-center px-6 overflow-hidden pb-24">
@@ -156,6 +179,82 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-6xl mb-16">
         <Dashboard />
       </div>
+
+      {/* Welcome Section for Non-Logged-in Users */}
+      {!session && (
+        <div className="relative z-10 w-full max-w-4xl mb-16">
+          <div
+            className="relative backdrop-blur-lg rounded-2xl p-8 border shadow-xl text-center"
+            style={{
+              backgroundColor: "var(--surface, rgba(255,255,255,0.9))",
+              borderColor: "var(--border, rgba(0,0,0,0.1))",
+            }}
+          >
+            <div
+              className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
+              style={{
+                backgroundImage: "linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6)",
+              }}
+            />
+            <div className="pt-4">
+              <h3 className="text-2xl sm:text-3xl font-bold mb-4" style={{ color: "var(--foreground)" }}>
+                🚀 Join Our Community!
+              </h3>
+              <p
+                className="text-lg leading-relaxed mb-8 max-w-2xl mx-auto"
+                style={{ color: "var(--muted, #64748b)" }}
+              >
+                Sign up to start your creative journey or discover amazing creators to support.
+                It's free and takes just a minute!
+              </p>
+              
+              <Link
+                href="/auth"
+                className="inline-flex items-center gap-2 px-10 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg"
+              >
+                <span>🎆 Get Started</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons for Logged-in Users */}
+      {session && (
+        <div className="relative z-10 w-full max-w-2xl mb-16">
+          {userProfile?.isCreator && userProfile?.profileSetupComplete ? (
+            /* Creator Dashboard Button */
+            <div className="text-center">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg"
+              >
+                <span>📊</span>
+                <span>Dashboard</span>
+              </Link>
+            </div>
+          ) : (
+            /* User Action Buttons */
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/creator-setup"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <span>🎨</span>
+                <span>Start My Creator Page</span>
+              </Link>
+              
+              <Link
+                href="/find-creators"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              >
+                <span>🔍</span>
+                <span>Find Creators</span>
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Features Section */}
       {/* ... (unchanged, keeping intact) ... */}

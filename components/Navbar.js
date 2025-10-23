@@ -13,17 +13,38 @@ const Navbar = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const { data: session } = useSession();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Fetch user profile to determine if they're a creator
+  useEffect(() => {
+    if (session?.user) {
+      // Add cache-busting parameter to ensure fresh data
+      fetch(`/api/creator/profile?t=${Date.now()}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          console.log('Navbar - Fetched user profile:', data);
+          console.log('isCreator:', data?.isCreator, 'profileSetupComplete:', data?.profileSetupComplete);
+          setUserProfile(data);
+        })
+        .catch(err => {
+          console.error('Navbar - Failed to fetch user profile:', err);
+          setUserProfile(null);
+        });
+    } else {
+      setUserProfile(null);
+    }
+  }, [session]);
+
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Contact", href: "/contact" },
-    { label: "Auth", href: "/auth" }, // ✅ merged auth page
   ].filter(Boolean);
+
 
   return (
     <nav className="w-full text-[color:var(--foreground)] px-6 py-4 shadow-md bg-[var(--background)] border-b border-[color:var(--accent-border)]">
@@ -39,10 +60,10 @@ const Navbar = () => {
         </div>
 
         {/* Desktop Menu */}
-        <ul className="hidden md:flex items-center gap-6 text-sm font-medium">
-          {[{ label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "FAQ", href: "/faq" }, ...navItems].map(({ label, href }) => {
-            if (session && label === "Auth") return null; // hide "Auth" if logged in
-            return (
+        <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+          {/* Navigation Links */}
+          <ul className="flex items-center gap-6">
+            {[{ label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "FAQ", href: "/faq" }, ...navItems].map(({ label, href }) => (
               <li key={label}>
                 <Link
                   href={href}
@@ -55,23 +76,54 @@ const Navbar = () => {
                   {label}
                 </Link>
               </li>
-            );
-          })}
+            ))}
+          </ul>
 
+          {/* Logged-in user info */}
           {session && (
-            <li className="flex items-center gap-2">
-              <span className="text-sm text-[color:var(--muted)]">
-                {session.user?.email || "Logged in"}
-              </span>
-              <button
-                onClick={() => signOut({ callbackUrl: "/auth" })} // ✅ redirect to /auth
-                className="px-3 py-1 text-sm rounded bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] shadow-[0_0_12px_var(--accent-shadow)]"
-              >
-                Sign out
-              </button>
-            </li>
+            <div className="flex items-center gap-3">
+              {/* Show different options based on user type */}
+              {userProfile?.isCreator && userProfile?.profileSetupComplete ? (
+                /* Creator - Show Dashboard Link */
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 rounded-lg font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                /* Regular User - Show Options */
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/find-creators"
+                    className="px-3 py-2 rounded-lg font-medium bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm"
+                  >
+                    Find Creators
+                  </Link>
+                  <Link
+                    href="/creator-setup"
+                    className="px-3 py-2 rounded-lg font-medium bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm"
+                  >
+                    Create Page
+                  </Link>
+                </div>
+              )}
+              
+              {/* User Info */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-[color:var(--muted)]">
+                  {session.user?.email || "Logged in"}
+                </span>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/auth" })} // ✅ redirect to /auth
+                  className="px-3 py-1 text-sm rounded bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] shadow-[0_0_12px_var(--accent-shadow)]"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
           )}
-        </ul>
+        </div>
 
         {/* Theme Toggle */}
         {mounted && (
@@ -100,10 +152,10 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {menuOpen && (
-        <ul className="md:hidden mt-4 flex flex-col gap-4 text-sm font-medium">
-          {[{ label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "FAQ", href: "/faq" }, ...navItems].map(({ label, href }) => {
-            if (session && label === "Auth") return null; // hide "Auth" if logged in
-            return (
+        <div className="md:hidden mt-4 space-y-4">
+          {/* Navigation Links */}
+          <ul className="flex flex-col gap-4 text-sm font-medium">
+            {[{ label: "Features", href: "/features" }, { label: "Pricing", href: "/pricing" }, { label: "FAQ", href: "/faq" }, ...navItems].map(({ label, href }) => (
               <li key={label}>
                 <Link
                   href={href}
@@ -115,23 +167,55 @@ const Navbar = () => {
                   {label}
                 </Link>
               </li>
-            );
-          })}
+            ))}
+          </ul>
 
+          {/* Mobile Logged-in user info */}
           {session && (
-            <li className="flex flex-col gap-1 px-2">
-              <span className="text-gray-300">
+            <div className="flex flex-col gap-3 px-2 border-t border-gray-700 pt-4">
+              {/* Show different options based on user type */}
+              {userProfile?.isCreator && userProfile?.profileSetupComplete ? (
+                /* Creator - Show Dashboard Link */
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-center hover:shadow-lg transition-all duration-200"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                /* Regular User - Show Both Options */
+                <>
+                  <Link
+                    href="/find-creators"
+                    className="px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium text-center hover:shadow-lg transition-all duration-200"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Find Creators
+                  </Link>
+                  <Link
+                    href="/creator-setup"
+                    className="px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-center hover:shadow-lg transition-all duration-200"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Create My Page
+                  </Link>
+                </>
+              )}
+              
+              {/* User Info */}
+              <span className="text-gray-300 text-sm">
                 {session.user?.email || "Logged in"}
               </span>
               <button
                 onClick={() => signOut({ callbackUrl: "/auth" })} // ✅ redirect to /auth
-                className="px-3 py-1 rounded bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-pink-600 hover:to-fuchsia-600 shadow-[0_0_12px_rgba(236,72,153,.35)]"
+                className="px-4 py-3 rounded-lg bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-pink-600 hover:to-fuchsia-600 shadow-[0_0_12px_rgba(236,72,153,.35)] text-white font-medium"
               >
                 Sign out
               </button>
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       )}
     </nav>
   );

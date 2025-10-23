@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
-import PaymentPage from "./Paymentpage";
+import PaymentForm from "./PaymentForm";
 import { useSearchParams } from "next/navigation";
 import { Sparkles, Heart, Coffee, Send, Copy, Mail, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -655,7 +655,9 @@ export default function Dashboard() {
             </div>
           </div>
           {/* Payment Section */}
-          <PaymentPage username={targetUsername} />
+          <div className="mt-8">
+            <PaymentForm username={targetUsername} recipientName={targetUsername} />
+          </div>
         </div>
       </section>
 
