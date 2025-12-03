@@ -29,12 +29,10 @@ export async function GET() {
       email: user.email,
       username: user.username,
       name: user.name,
-      isCreator: user.isCreator,
       profileSetupComplete: user.profileSetupComplete,
-      creatorProfile: user.creatorProfile,
-      hasCreatorProfile: !!user.creatorProfile,
-      hasBankDetails: !!user.bankDetails,
-      creatorStats: user.creatorStats,
+      academicProfile: user.academicProfile,
+      hasAcademicProfile: !!user.academicProfile,
+      aiCredits: user.aiCredits || 0,
       rawUser: user.toJSON(),
     });
 

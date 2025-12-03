@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# StudySync Daily — Student-Centric Academic Planner
+
+StudySync Daily helps students plan, track, and optimize study time. Lightweight, privacy-focused, and built to turn scattered to-dos into a daily blueprint — routines, tasks, and weekly study targets all in one place.
+
+## Features
+
+- Daily Blueprint — at-a-glance plan for today with prioritized tasks.
+- Adaptive Scheduling — schedule and reschedule tasks around fixed routines.
+- Routine Management — recurring habits, classes, and breaks (weekly schedule).
+- AI Study Helpers & Micro-Transactions — optional paid features (credits, premium plans) backed by the existing payment infra.
+
+## Tech Stack
+
+- Next.js (app router)
+- NextAuth for authentication
+- MongoDB with Mongoose for persistence
+- Serverless API routes under /app/api
+- Optional payment integrations (Stripe / Razorpay / mock)
 
 ## Getting Started
 
-First, run the development server:
+Prerequisites
+- Node.js 18+
+- MongoDB (Atlas or local)
+- Environment variables (see below)
 
+Install
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Development
+```bash
+# dev server
+npm run dev
+# clear build cache (Windows PowerShell)
+rd /s /q .next
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Build / Production
+```bash
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+API endpoints (key)
+- GET/PUT /api/user/academic-profile — fetch/update academicProfile
+- GET/POST /api/tasks — list/create AcademicTask
+- GET/POST /api/routines — list/create Routine
+- POST /api/register — create new user (password rules enforced)
+- NextAuth at /api/auth/[...nextauth] — credentials + OAuth
 
-To learn more about Next.js, take a look at the following resources:
+Models
+- models/User.js — user + academicProfile
+- models/AcademicTask.js — tasks/assignments
+- models/Routine.js — recurring schedule items
+- models/Payment.js — micro-transaction records
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Notes
+- Password policy: minimum 8 chars with upper/lowercase, digit, and special char.
+- Keep .env* out of source control (use .gitignore).
+- The app is intentionally modular: replace or extend payment gateways and AI helpers as needed.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributing
+- Open issues and PRs welcome. Keep changes focused and add tests where applicable.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+License
+- MIT (or your preferred license) — add LICENSE file if needed.

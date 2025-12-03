@@ -6,40 +6,35 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   User,
-  Settings,
-  Upload,
-  Eye,
-  Heart,
-  DollarSign,
-  TrendingUp,
   Calendar,
-  MessageSquare,
-  BarChart3,
   PlusCircle,
-  Edit3,
-  Share2,
-  Copy,
-  ExternalLink,
-  CreditCard,
-  Users,
-  Star,
-  Award,
+  BarChart3,
   Clock,
   Activity,
+  MessageSquare,
 } from "lucide-react";
+import TaskForm from "../../components/TaskForm";
+import ReflectionForm from "../../components/ReflectionForm";
+import DailyBlueprintTimeline from "../../components/DailyBlueprintTimeline";
+import PomodoroTimer from "../../components/PomodoroTimer";
 
-export default function CreatorDashboard() {
+export default function StudentDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("overview");
+
+  const [activeTab, setActiveTab] = useState("blueprint");
   const [loading, setLoading] = useState(true);
-  const [creatorData, setCreatorData] = useState(null);
-  const [portfolio, setPortfolio] = useState([]);
-  const [earnings, setEarnings] = useState({
-    totalEarnings: 0,
-    thisMonth: 0,
-    supporters: 0,
-    portfolioViews: 0,
+  const [profile, setProfile] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [routines, setRoutines] = useState([]);
+  const [blueprint, setBlueprint] = useState(null);
+  const [focusPrediction, setFocusPrediction] = useState(null);
+  const [showReflectionModal, setShowReflectionModal] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [stats, setStats] = useState({
+    tasksDueToday: 0,
+    studyStreak: 0,
+    hoursPlannedThisWeek: 0,
   });
 
   useEffect(() => {
@@ -47,45 +42,101 @@ export default function CreatorDashboard() {
       router.push("/auth");
       return;
     }
-
-    if (status === "authenticated" && session) {
+    if (status === "authenticated") {
       fetchDashboardData();
     }
   }, [status, session, router]);
 
   const fetchDashboardData = async () => {
+    let studentProfileData = null;
+
     try {
       setLoading(true);
-      
-      // Fetch creator profile data
-      const profileResponse = await fetch("/api/creator/profile");
+
+      // Fetch student profile data
+      const profileResponse = await fetch("/api/user/academic-profile");
       if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        setCreatorData(profileData);
-        
-        // If not a creator or setup not complete, redirect to setup
-        if (!profileData.isCreator || !profileData.profileSetupComplete) {
-          router.push("/creator-setup");
-          return;
+        studentProfileData = await profileResponse.json();
+        setProfile(studentProfileData);
+      } else {
+        console.warn("Could not fetch student profile data.");
+        setProfile(null);
+      }
+
+      // Fetch tasks
+      let tasksData = [];
+      const tasksResponse = await fetch("/api/tasks");
+      if (tasksResponse.ok) {
+        const tasksResponseData = await tasksResponse.json();
+        tasksData = Array.isArray(tasksResponseData) ? tasksResponseData : tasksResponseData.tasks || [];
+        setTasks(tasksData);
+      } else {
+        console.warn("Could not fetch tasks data.");
+        tasksData = [];
+      }
+
+      // Fetch routines
+      let routinesData = [];
+      const routinesResponse = await fetch("/api/routines");
+      if (routinesResponse.ok) {
+        const routinesResponseData = await routinesResponse.json();
+        routinesData = Array.isArray(routinesResponseData) ? routinesResponseData : routinesResponseData.routines || [];
+        setRoutines(routinesData);
+      } else {
+        console.warn("Could not fetch routines data.");
+        routinesData = [];
+      }
+
+      // Fetch daily blueprint
+      const blueprintResponse = await fetch("/api/planner/blueprint");
+      if (blueprintResponse.ok) {
+        const blueprintData = await blueprintResponse.json();
+        setBlueprint(blueprintData);
+      } else {
+        console.warn("Could not fetch blueprint data.");
+        setBlueprint(null);
+      }
+
+      // Fetch predictive focus score (next 24h)
+      try {
+        const focusResponse = await fetch("/api/ai/predict");
+        if (focusResponse.ok) {
+          const focusData = await focusResponse.json();
+          setFocusPrediction(focusData);
+        } else {
+          console.warn("Could not fetch focus prediction data.");
+          setFocusPrediction(null);
         }
+      } catch (focusError) {
+        console.warn("Error fetching focus prediction:", focusError);
+        setFocusPrediction(null);
       }
 
-      // Fetch portfolio
-      const portfolioResponse = await fetch("/api/creator/portfolio");
-      if (portfolioResponse.ok) {
-        const portfolioData = await portfolioResponse.json();
-        setPortfolio(portfolioData.portfolio || []);
-      }
+      // Compute stats from fetched data
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const tasksDueToday = tasksData.filter((t) => {
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === today.getTime();
+      }).length;
 
-      // Fetch earnings data
-      const earningsResponse = await fetch("/api/creator/earnings");
-      if (earningsResponse.ok) {
-        const earningsData = await earningsResponse.json();
-        setEarnings(earningsData);
-      }
+      const studyStreak = studentProfileData?.studyStreak ?? 0;
+      const hoursPlannedThisWeek = (studentProfileData?.academicProfile?.targetHoursPerWeek) ?? 0;
 
+      setStats({
+        tasksDueToday,
+        studyStreak,
+        hoursPlannedThisWeek,
+      });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      setProfile(null);
+      setTasks([]);
+      setRoutines([]);
+      setBlueprint(null);
     } finally {
       setLoading(false);
     }
@@ -94,7 +145,6 @@ export default function CreatorDashboard() {
   const copyProfileLink = () => {
     const profileUrl = `${window.location.origin}/${session?.user?.username}`;
     navigator.clipboard.writeText(profileUrl);
-    // You could add a toast notification here
   };
 
   if (loading || status === "loading") {
@@ -109,231 +159,211 @@ export default function CreatorDashboard() {
   }
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: BarChart3 },
-    { id: "portfolio", label: "Portfolio", icon: Upload },
-    { id: "earnings", label: "Earnings", icon: DollarSign },
-    { id: "profile", label: "Profile", icon: User },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "blueprint", label: "Blueprint", icon: Calendar },
+    { id: "tasks", label: "Tasks", icon: PlusCircle },
+    { id: "stats", label: "Stats", icon: BarChart3 },
   ];
 
-  const StatCard = ({ title, value, icon: Icon, trend, color = "emerald" }) => (
-    <div className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-          <p className={`text-3xl font-bold text-${color}-600 dark:text-${color}-400 mt-2`}>
-            {value}
-          </p>
-          {trend && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              <span className="text-green-600">+{trend}%</span> from last month
-            </p>
-          )}
-        </div>
-        <div className={`p-3 bg-${color}-100 dark:bg-${color}-900/30 rounded-xl`}>
-          <Icon className={`h-6 w-6 text-${color}-600 dark:text-${color}-400`} />
-        </div>
-      </div>
-    </div>
-  );
+  const StatCard = ({ title, value, icon: Icon, color = "emerald" }) => {
+    const colorClasses = {
+      emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30",
+      blue: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30",
+      purple: "text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30",
+    };
 
-  const renderOverview = () => (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-8 text-white">
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome back, {creatorData?.name || session?.user?.name}! 👋
-            </h1>
-            <p className="text-emerald-100 text-lg">
-              Ready to share your amazing work with the world?
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+            <p className={`text-3xl font-bold mt-2 ${colorClasses[color]?.split(" ").slice(0, 4).join(" ")}`}>
+              {value}
             </p>
           </div>
-          <div className="hidden md:block">
+          <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
+            <Icon className="h-6 w-6" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBlueprint = () => (
+    <div className="space-y-8">
+      <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-8 text-white">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome, {profile?.name || session?.user?.name || session?.user?.username}!
+            </h1>
+            <p className="text-emerald-100 text-lg">
+              Your daily StudySync Blueprint to plan and track study sessions.
+            </p>
+          </div>
+          <div className="hidden md:block flex-shrink-0">
             <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4">
               <Activity className="h-12 w-12 text-white" />
             </div>
           </div>
         </div>
-        
+
         <div className="mt-6 flex flex-wrap gap-4">
-          <Link
-            href="/dashboard?tab=portfolio"
+          <button
+            onClick={() => setActiveTab("tasks")}
             className="bg-white/20 backdrop-blur-lg px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-colors flex items-center gap-2"
           >
-            <Upload className="h-5 w-5" />
-            Add New Work
-          </Link>
+            <PlusCircle className="h-5 w-5" />
+            Add Task
+          </button>
+          <button
+            onClick={() => setShowReflectionModal(true)}
+            className="bg-white/20 backdrop-blur-lg px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-colors flex items-center gap-2"
+          >
+            <MessageSquare className="h-5 w-5" />
+            Evening Reflection
+          </button>
           <button
             onClick={copyProfileLink}
             className="bg-white/20 backdrop-blur-lg px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-colors flex items-center gap-2"
           >
-            <Share2 className="h-5 w-5" />
+            <Clock className="h-5 w-5" />
             Share Profile
           </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
-          title="Total Earnings"
-          value={`₹${earnings.totalEarnings.toLocaleString()}`}
-          icon={DollarSign}
-          trend={15}
+          title="Tasks Due Today"
+          value={stats.tasksDueToday}
+          icon={Calendar}
           color="emerald"
         />
         <StatCard
-          title="This Month"
-          value={`₹${earnings.thisMonth.toLocaleString()}`}
-          icon={TrendingUp}
-          trend={8}
+          title="Study Streak"
+          value={`${stats.studyStreak} day${stats.studyStreak === 1 ? "" : "s"}`}
+          icon={Activity}
           color="blue"
         />
         <StatCard
-          title="Supporters"
-          value={earnings.supporters.toLocaleString()}
-          icon={Users}
-          trend={12}
+          title="Hours Planned This Week"
+          value={stats.hoursPlannedThisWeek}
+          icon={Clock}
           color="purple"
         />
-        <StatCard
-          title="Portfolio Views"
-          value={earnings.portfolioViews.toLocaleString()}
-          icon={Eye}
-          trend={25}
-          color="pink"
-        />
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <div className="bg-emerald-100 dark:bg-emerald-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <PlusCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Upload New Work
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Share your latest creation with your audience
-            </p>
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className="bg-emerald-500 text-white px-6 py-2 rounded-xl hover:bg-emerald-600 transition-colors"
-            >
-              Start Upload
-            </button>
+      {/* Predictive Focus Score status bar */}
+      {focusPrediction && Array.isArray(focusPrediction.hours) && focusPrediction.hours.length > 0 && (
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Predictive Focus Score (next 24h)</p>
+            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              Baseline: {focusPrediction.baseline ?? "--"}/100
+            </span>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <div className="bg-blue-100 dark:bg-blue-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Edit3 className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Update Profile
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              Keep your profile fresh and engaging
-            </p>
-            <button
-              onClick={() => setActiveTab("profile")}
-              className="bg-blue-500 text-white px-6 py-2 rounded-xl hover:bg-blue-600 transition-colors"
-            >
-              Edit Profile
-            </button>
+          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-sky-400"
+              style={{
+                width: `${Math.max(
+                  10,
+                  Math.min(
+                    100,
+                    focusPrediction.baseline ?? 60,
+                  ),
+                )}%`,
+              }}
+            />
           </div>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Higher scores suggest better focus windows. Plan deep work near your peak hours.
+          </p>
         </div>
+      )}
 
+      {/* Daily Blueprint Timeline */}
+      {blueprint ? (
+        <DailyBlueprintTimeline blueprint={blueprint} />
+      ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <div className="bg-purple-100 dark:bg-purple-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ExternalLink className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              View Public Profile
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              See how others see your profile
-            </p>
-            <Link
-              href={`/${session?.user?.username}`}
-              target="_blank"
-              className="bg-purple-500 text-white px-6 py-2 rounded-xl hover:bg-purple-600 transition-colors inline-block"
-            >
-              View Profile
-            </Link>
-          </div>
+          <p className="text-center text-gray-600 dark:text-gray-400">
+            Loading your daily blueprint...
+          </p>
         </div>
-      </div>
+      )}
+    </div>
+  );
 
-      {/* Recent Portfolio Items */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Recent Work
-          </h2>
+  const renderTasks = () => (
+    <div className="space-y-8">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create New Task or Routine</h2>
           <button
-            onClick={() => setActiveTab("portfolio")}
-            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-medium flex items-center gap-2"
+            onClick={() => setShowTaskForm(!showTaskForm)}
+            className="text-emerald-600 hover:underline text-sm"
           >
-            View All
-            <ExternalLink className="h-4 w-4" />
+            {showTaskForm ? "Hide" : "Show"}
           </button>
         </div>
-        
-        {portfolio.length === 0 ? (
-          <div className="text-center py-12">
-            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
-              No work uploaded yet
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Start building your portfolio by uploading your first piece
-            </p>
-            <button
-              onClick={() => setActiveTab("portfolio")}
-              className="bg-emerald-500 text-white px-6 py-3 rounded-xl hover:bg-emerald-600 transition-colors"
-            >
-              Upload First Work
-            </button>
-          </div>
+        {showTaskForm && (
+          <TaskForm onSuccess={() => {
+            setShowTaskForm(false);
+            fetchDashboardData();
+          }} />
+        )}
+      </div>
+
+      {/* Tasks List */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+        <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Academic Tasks</h3>
+        {tasks.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400 text-center py-8">No tasks yet. Create one above!</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {portfolio.slice(0, 6).map((item) => (
-              <div
-                key={item.id}
-                className="group cursor-pointer"
-                onClick={() => setActiveTab("portfolio")}
-              >
-                <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden mb-3">
-                  {item.files?.[0]?.url ? (
-                    <Image
-                      src={item.files[0].url}
-                      alt={item.title}
-                      width={300}
-                      height={300}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Upload className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
+          <div className="space-y-3">
+            {tasks.map((t) => (
+              <div key={t._id || t.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 dark:text-white">{t.title}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">{t.subject || "No subject"}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Due: {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : "No due date"}
+                  </p>
+                  <div className="mt-2">
+                    <PomodoroTimer taskId={t._id || t.id} />
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                  {item.title}
-                </h3>
-                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                  <Eye className="h-4 w-4 mr-1" />
-                  {item.views || 0}
-                  <Heart className="h-4 w-4 ml-4 mr-1" />
-                  {item.likeCount || 0}
+                <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full flex-shrink-0 self-start md:self-auto">
+                  {t.type}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Routines List */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+        <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recurring Routines</h3>
+        {routines.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400 text-center py-8">No routines yet. Create one above!</p>
+        ) : (
+          <div className="space-y-3">
+            {routines.map((r) => (
+              <div key={r._id || r.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-start justify-between">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 dark:text-white">{r.name}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {r.startTime} • {r.duration} min
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Days: {Array.isArray(r.daysOfWeek) ? r.daysOfWeek.map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ") : "N/A"}
+                  </p>
                 </div>
+                <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded-full flex-shrink-0">
+                  {r.type}
+                </span>
               </div>
             ))}
           </div>
@@ -342,66 +372,57 @@ export default function CreatorDashboard() {
     </div>
   );
 
+  const renderStats = () => (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+      <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Study Analytics</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <StatCard
+          title="Current Study Streak"
+          value={`${stats.studyStreak} day${stats.studyStreak === 1 ? "" : "s"}`}
+          icon={Activity}
+          color="emerald"
+        />
+        <StatCard
+          title="Weekly Hours Target"
+          value={stats.hoursPlannedThisWeek}
+          icon={Clock}
+          color="blue"
+        />
+      </div>
+
+      <div className="text-center py-8 text-gray-600 dark:text-gray-400 border-t border-dashed border-gray-200 dark:border-gray-700 mt-4">
+        <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-60" />
+        <p className="text-lg font-medium mb-1">More analytics coming soon</p>
+        <p className="text-sm">
+          Keep completing daily reflections to unlock deeper insights into your focus patterns and study habits.
+        </p>
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
-      case "overview":
-        return renderOverview();
-      case "portfolio":
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Portfolio Management</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Portfolio management interface will be implemented here.
-            </p>
-          </div>
-        );
-      case "earnings":
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Earnings & Analytics</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Detailed earnings and analytics interface will be implemented here.
-            </p>
-          </div>
-        );
-      case "profile":
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Profile Settings</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Profile editing interface will be implemented here.
-            </p>
-          </div>
-        );
-      case "settings":
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Account Settings</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Account settings interface will be implemented here.
-            </p>
-          </div>
-        );
+      case "blueprint":
+        return renderBlueprint();
+      case "tasks":
+        return renderTasks();
+      case "stats":
+        return renderStats();
       default:
-        return renderOverview();
+        return renderBlueprint();
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navigation */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center space-x-4">
-              <div className="relative w-10 h-10">
-                {creatorData?.profilepic ? (
-                  <Image
-                    src={creatorData.profilepic}
-                    alt="Profile"
-                    fill
-                    className="rounded-full object-cover"
-                  />
+              <div className="relative w-10 h-10 flex-shrink-0">
+                {profile?.profilepic ? (
+                  <Image src={profile.profilepic} alt="Profile" fill className="rounded-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
                     <User className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -409,28 +430,24 @@ export default function CreatorDashboard() {
                 )}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Creator Dashboard
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  @{session?.user?.username}
-                </p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">StudySync Blueprint</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">@{session?.user?.username}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <button
                 onClick={copyProfileLink}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
-                <Share2 className="h-4 w-4" />
+                <Clock className="h-4 w-4" />
                 <span className="hidden sm:inline">Share</span>
               </button>
               <Link
                 href={`/${session?.user?.username}`}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors"
               >
-                <ExternalLink className="h-4 w-4" />
+                <Clock className="h-4 w-4" />
                 <span className="hidden sm:inline">View Profile</span>
               </Link>
             </div>
@@ -439,7 +456,6 @@ export default function CreatorDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Tab Navigation */}
         <div className="mb-8">
           <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl overflow-x-auto">
             {tabs.map((tab) => {
@@ -462,9 +478,34 @@ export default function CreatorDashboard() {
           </div>
         </div>
 
-        {/* Tab Content */}
         {renderTabContent()}
       </div>
+
+      {/* Reflection Modal */}
+      {showReflectionModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Evening Reflection</h2>
+                <button
+                  onClick={() => setShowReflectionModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+              <ReflectionForm
+                date={new Date()}
+                onSuccess={() => {
+                  setShowReflectionModal(false);
+                  fetchDashboardData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

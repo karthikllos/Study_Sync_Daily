@@ -18,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata = {
-  title: "Get Me A Chai",
-  description: "Crowd funding platform for startups with chai",
+  title: "StudySync Daily: Academic Planner",
+  description: "AI-powered academic planner for students - schedule tasks, track progress, and optimize study time",
 };
 
 export default function RootLayout({ children }) {

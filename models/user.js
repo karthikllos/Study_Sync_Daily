@@ -30,21 +30,19 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      select: false, // Don't include password in queries by default
+      select: false,
       validate: {
         validator: function(password) {
-          // Only validate password if it's being set (not for OAuth users)
           if (!password && !this.isOAuthUser) {
             return false;
           }
           if (password) {
-            // Password strength validation
             return (
               password.length >= 8 &&
-              /(?=.*[a-z])/.test(password) && // lowercase
-              /(?=.*[A-Z])/.test(password) && // uppercase
-              /(?=.*\d)/.test(password) && // number
-              /(?=.*[@$!%*?&])/.test(password) // special character
+              /(?=.*[a-z])/.test(password) &&
+              /(?=.*[A-Z])/.test(password) &&
+              /(?=.*\d)/.test(password) &&
+              /(?=.*[@$!%*?&])/.test(password)
             );
           }
           return true;
@@ -61,135 +59,83 @@ const UserSchema = new mongoose.Schema(
       maxlength: [500, "Bio cannot exceed 500 characters"],
       trim: true,
     },
-    
-    // Creator Profile Fields
-    isCreator: {
+
+    // New academic profile for StudySync Daily
+    academicProfile: {
+      institution: {
+        type: String,
+        trim: true,
+        maxlength: [100, "Institution cannot exceed 100 characters"]
+      },
+      major: {
+        type: String,
+        trim: true,
+        maxlength: [100, "Major cannot exceed 100 characters"]
+      },
+      targetHoursPerWeek: {
+        type: Number,
+        default: 0,
+        min: [0, "targetHoursPerWeek must be >= 0"]
+      }
+    },
+
+    // AI credits for micro-transaction features
+    aiCredits: {
+      type: Number,
+      default: 0,
+      min: [0, "aiCredits cannot be negative"]
+    },
+
+    // Subscription fields for StudySync Pro
+    isProSubscriber: {
       type: Boolean,
       default: false,
     },
-    profileSetupComplete: {
-      type: Boolean,
-      default: false,
+    subscriptionEndsAt: {
+      type: Date,
+      default: null,
     },
-    creatorProfile: {
-      displayName: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Display name cannot exceed 100 characters"],
-      },
-      tagline: {
-        type: String,
-        trim: true,
-        maxlength: [150, "Tagline cannot exceed 150 characters"],
-      },
-      category: {
-        type: String,
-        enum: ['artist', 'musician', 'writer', 'photographer', 'developer', 'designer', 'content_creator', 'educator', 'entrepreneur', 'other'],
-      },
-      location: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Location cannot exceed 100 characters"],
-      },
-      website: {
-        type: String,
-        trim: true,
-        validate: {
-          validator: function(v) {
-            return !v || /^https?:\/\/.+/.test(v);
-          },
-          message: 'Website must be a valid URL starting with http:// or https://'
-        }
-      },
-      socialLinks: {
-        instagram: String,
-        twitter: String,
-        youtube: String,
-        linkedin: String,
-        github: String,
-        behance: String,
-        dribbble: String,
-      },
-      skills: [{
-        type: String,
-        trim: true,
-        maxlength: [50, "Skill cannot exceed 50 characters"],
-      }],
-      achievements: [{
-        title: String,
-        description: String,
-        date: Date,
-        link: String,
-      }],
+
+    // Gamification: Study streak counter
+    studyStreak: {
+      type: Number,
+      default: 0,
+      min: [0, "studyStreak cannot be negative"]
     },
-    
-    // Bank Details for Payouts
-    bankDetails: {
-      accountHolderName: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Account holder name cannot exceed 100 characters"],
-      },
-      accountNumber: {
-        type: String,
-        trim: true,
-        select: false, // Don't include in regular queries
-      },
-      ifscCode: {
-        type: String,
-        trim: true,
-        uppercase: true,
-        match: [/^[A-Z]{4}0[A-Z0-9]{6}$/, "Please enter a valid IFSC code"],
-      },
-      bankName: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Bank name cannot exceed 100 characters"],
-      },
-      branchName: {
-        type: String,
-        trim: true,
-        maxlength: [100, "Branch name cannot exceed 100 characters"],
-      },
-      upiId: {
-        type: String,
-        trim: true,
-        lowercase: true,
-        match: [/^[a-zA-Z0-9.-]{2,}@[a-zA-Z]{2,}$/, "Please enter a valid UPI ID"],
-      },
-      isVerified: {
-        type: Boolean,
-        default: false,
-      },
+
+    // Accountability partner for collaborative features
+    accountabilityPartner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
     },
-    
-    // Creator Statistics
-    creatorStats: {
-      totalSupport: {
+
+    // AI Profile for predictive features
+    aiProfile: {
+      optimalStudyHour: {
         type: Number,
-        default: 0,
+        min: 0,
+        max: 23,
+        default: 14 // 2 PM default
       },
-      supportersCount: {
-        type: Number,
-        default: 0,
-      },
-      totalWithdrawn: {
-        type: Number,
-        default: 0,
-      },
-      portfolioViews: {
-        type: Number,
-        default: 0,
-      },
+      predictionModelData: {
+        type: Map,
+        of: mongoose.Schema.Types.Mixed,
+        default: {}
+      }
     },
+
+    // OAuth / auth metadata
     isOAuthUser: {
       type: Boolean,
       default: false,
     },
     oauthProviders: [{
-      provider: String, // 'google', 'github', 'linkedin'
+      provider: String,
       providerId: String,
     }],
+
+    // Verification and security fields
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -198,6 +144,8 @@ const UserSchema = new mongoose.Schema(
     emailVerificationExpires: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+
+    // Login tracking / protection
     lastLoginAt: Date,
     loginAttempts: {
       type: Number,
@@ -232,7 +180,7 @@ UserSchema.pre('save', async function(next) {
   if (!this.isModified('password') || !this.password) {
     return next();
   }
-  
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -255,24 +203,22 @@ UserSchema.methods.isAccountLocked = function() {
 
 // Method to increment login attempts
 UserSchema.methods.incrementLoginAttempts = async function() {
-  // If we have a previous lock that has expired, restart at 1
   if (this.accountLockedUntil && this.accountLockedUntil < Date.now()) {
     return this.updateOne({
       $unset: { accountLockedUntil: 1 },
       $set: { accountLocked: false, loginAttempts: 1 }
     });
   }
-  
+
   const updates = { $inc: { loginAttempts: 1 } };
-  
-  // If we have hit max attempts and it's not locked, lock the account
+
   if (this.loginAttempts + 1 >= 5 && !this.accountLocked) {
     updates.$set = {
       accountLocked: true,
-      accountLockedUntil: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+      accountLockedUntil: Date.now() + 2 * 60 * 60 * 1000,
     };
   }
-  
+
   return this.updateOne(updates);
 };
 
@@ -294,9 +240,8 @@ UserSchema.statics.findByEmailOrUsername = function(identifier) {
   });
 };
 
-// Index for performance
+// Indexes
 UserSchema.index({ email: 1, username: 1 });
 UserSchema.index({ accountLockedUntil: 1 }, { expireAfterSeconds: 0 });
 
-// Prevent model overwrite error in dev
 export default mongoose.models.User || mongoose.model("User", UserSchema);
