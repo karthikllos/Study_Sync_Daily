@@ -54,6 +54,7 @@ export default function RootLayout({ children }) {
             />
           </ThemeProvider>
         </Sessionwrapper>
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
       </body>
     </html>
   );

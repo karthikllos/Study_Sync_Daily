@@ -74,9 +74,8 @@ export default function PricingPage() {
             return;
         }
         if (plan.name === 'Free') {
-             // Already using the free tier or redirect to dashboard
-             router.push('/dashboard');
-             return;
+            router.push('/dashboard');
+            return;
         }
 
         setLoadingPlanId(plan.planId);
@@ -96,6 +95,7 @@ export default function PricingPage() {
             if (!response.ok) {
                 const error = await response.json();
                 alert(`Error creating order: ${error.message || 'Server error'}`);
+                setLoadingPlanId(null);
                 return;
             }
 
@@ -109,39 +109,56 @@ export default function PricingPage() {
                 name: 'StudySync Daily',
                 description: `${plan.name} Plan Subscription`,
                 order_id: data.orderId, 
-                handler: function (response) {
-                    // 3. Verify payment after success
-                    fetch('/api/checkout/subscription/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_signature: response.razorpay_signature,
-                            planName: plan.name,
-                        }),
-                    }).then(res => res.json()).then(verificationData => {
+                handler: async function (response) {
+                    // 3. Verify payment after success (with await)
+                    try {
+                        const verifyRes = await fetch('/api/checkout/subscription/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                                planName: plan.name,
+                            }),
+                        });
+
+                        const verificationData = await verifyRes.json();
+                        
                         if (verificationData.success) {
                             alert(`Subscription to ${plan.name} successful! Welcome to Pro Mode.`);
-                            router.push('/dashboard'); // Go to dashboard after success
+                            setLoadingPlanId(null);
+                            router.push('/dashboard');
                         } else {
                             alert("Payment verification failed. Please contact support.");
+                            setLoadingPlanId(null);
                         }
-                    });
+                    } catch (verifyError) {
+                        console.error("Verification error:", verifyError);
+                        alert("Payment verification error. Please contact support.");
+                        setLoadingPlanId(null);
+                    }
+                },
+                modal: {
+                    ondismiss: function() {
+                        // User closed the modal without completing payment
+                        setLoadingPlanId(null);
+                    }
                 },
                 prefill: {
-                    name: session?.user?.name,
-                    email: session?.user?.email,
+                    name: session?.user?.name || '',
+                    email: session?.user?.email || '',
                 },
                 theme: {
-                    color: themeVars['--accent-from'],
+                    color: '#047857',
                 }
             };
             
             // Ensure Razorpay script is loaded before calling new window.Razorpay()
             if (typeof window.Razorpay === 'undefined') {
-                 alert("Payment gateway not loaded. Please try again or check network connection.");
-                 return;
+                alert("Payment gateway not loaded. Please try again or check network connection.");
+                setLoadingPlanId(null);
+                return;
             }
 
             const rzp = new window.Razorpay(options);
@@ -150,7 +167,6 @@ export default function PricingPage() {
         } catch (error) {
             console.error("Subscription initiation error:", error);
             alert("Could not start payment process. Please try again.");
-        } finally {
             setLoadingPlanId(null);
         }
     };
