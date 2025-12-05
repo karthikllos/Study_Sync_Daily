@@ -2,65 +2,30 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import connectDb from "../../../lib/connectDb";
-import User from "../../../models/user";
-import Group from "../../../models/Group";
 
-export const dynamic = "force-dynamic";
-
-async function requireSession() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return null;
-  return session;
-}
-
-async function resolveUserFromSession(session) {
-  await connectDb();
-
-  const id = session.user?.id || session.user?.sub || null;
-  if (id) {
-    return User.findById(id);
-  }
-
-  if (session.user?.email) {
-    return User.findOne({ email: session.user.email.toLowerCase().trim() });
-  }
-
-  return null;
-}
+/**
+ * @deprecated This endpoint has been replaced by /api/study-groups
+ * Will be removed in the next major version
+ */
 
 /**
  * GET /api/groups
  * Returns groups where the user is creator or member.
  */
 export async function GET(request) {
-  try {
-    const session = await requireSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return NextResponse.json(
+    { 
+      error: 'This endpoint is deprecated. Please use /api/study-groups instead.',
+      migrationGuide: 'https://docs.your-app.com/migration/study-groups-endpoint'
+    },
+    { 
+      status: 410, // Gone
+      headers: {
+        'Deprecation': 'true',
+        'Link': '</api/study-groups>; rel="successor-version"',
+      }
     }
-
-    const user = await resolveUserFromSession(session);
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    await connectDb();
-
-    const groups = await Group.find({
-      $or: [
-        { creator: user._id },
-        { "members.user": user._id },
-      ],
-    })
-      .populate("creator", "username name profilepic")
-      .populate("members.user", "username name profilepic")
-      .lean();
-
-    return NextResponse.json({ groups }, { status: 200 });
-  } catch (err) {
-    console.error("Groups GET error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
+  );
 }
 
 /**

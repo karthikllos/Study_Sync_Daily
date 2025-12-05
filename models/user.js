@@ -95,6 +95,20 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    subscriptionPlan: {
+      type: String,
+      enum: ["Free", "Pro", "Pro Max"],
+      default: "Free",
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "cancelled", "expired"],
+      default: "active",
+    },
+    subscriptionRenewalDate: {
+      type: Date,
+      default: null,
+    },
 
     // Gamification: Study streak counter
     studyStreak: {

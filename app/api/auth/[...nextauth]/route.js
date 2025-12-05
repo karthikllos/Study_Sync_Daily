@@ -3,9 +3,9 @@ import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import LinkedInProvider from "next-auth/providers/linkedin";
 import CredentialsProvider from "next-auth/providers/credentials";
-import mongoose from "mongoose";
 import connectDb from "../../../../lib/connectDb";
 import User from "../../../../models/user";
+import bcryptjs from "bcryptjs";
 
 export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -33,13 +33,13 @@ export const authOptions = {
         email: {
           label: "Email",
           type: "email",
-          placeholder: "Enter your email"
+          placeholder: "Enter your email",
         },
         password: {
           label: "Password",
           type: "password",
-          placeholder: "Enter your password"
-        }
+          placeholder: "Enter your password",
+        },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -49,97 +49,85 @@ export const authOptions = {
         try {
           console.log("[AUTH] Starting login for:", credentials.email);
           await connectDb();
-          
-          // Find user by email or username - first check if the static method exists
-          let user;
-          if (User.findByEmailOrUsername) {
-            console.log("[AUTH] Using findByEmailOrUsername method");
-            user = await User.findByEmailOrUsername(credentials.email)
-              .select("+password +loginAttempts +accountLocked +accountLockedUntil");
-          } else {
-            console.log("[AUTH] Using fallback user search");
-            // Fallback to manual search
-            user = await User.findOne({
-              $or: [
-                { email: credentials.email.toLowerCase() },
-                { username: credentials.email.toLowerCase() }
-              ]
-            }).select("+password +loginAttempts +accountLocked +accountLockedUntil");
-          }
-          
-          console.log("[AUTH] User found:", !!user, user ? `email: ${user.email}` : 'no user');
-          
+
+          // Find user by email or username
+          const user = await User.findOne({
+            $or: [
+              { email: credentials.email.toLowerCase() },
+              { username: credentials.email.toLowerCase() },
+            ],
+          }).select("+password +loginAttempts +accountLocked +accountLockedUntil");
+
+          console.log("[AUTH] User found:", !!user, user ? `email: ${user.email}` : "no user");
+
           if (!user) {
             console.log("[AUTH] No user found for:", credentials.email);
             throw new Error("No account found with this email");
           }
 
           // Check if account is locked
-          const isLocked = user.isAccountLocked ? user.isAccountLocked() : 
-            (user.accountLocked && user.accountLockedUntil && user.accountLockedUntil > Date.now());
-          
+          const isLocked =
+            user.accountLocked &&
+            user.accountLockedUntil &&
+            user.accountLockedUntil > Date.now();
+
           if (isLocked) {
-            throw new Error("Account temporarily locked due to too many failed attempts. Try again later.");
+            throw new Error(
+              "Account temporarily locked due to too many failed attempts. Try again later."
+            );
           }
 
           // Check if user has password (not OAuth-only)
           if (!user.password) {
-            throw new Error("Please sign in using your social account or reset your password");
+            throw new Error(
+              "Please sign in using your social account or reset your password"
+            );
           }
 
           // Verify password
           console.log("[AUTH] Starting password verification");
           console.log("[AUTH] User has password:", !!user.password);
-          console.log("[AUTH] User has comparePassword method:", !!user.comparePassword);
-          
+
           let isValidPassword = false;
           try {
-            if (user.comparePassword) {
-              console.log("[AUTH] Using comparePassword method");
-              isValidPassword = await user.comparePassword(credentials.password);
-            } else {
-              console.log("[AUTH] Using fallback bcrypt compare");
-              // Fallback password comparison
-              const bcrypt = require('bcryptjs');
-              isValidPassword = await bcrypt.compare(credentials.password, user.password);
-            }
+            isValidPassword = await bcryptjs.compare(
+              credentials.password,
+              user.password
+            );
             console.log("[AUTH] Password comparison result:", isValidPassword);
           } catch (passwordError) {
             console.error("[AUTH] Password comparison error:", passwordError);
             isValidPassword = false;
           }
-          
+
           if (!isValidPassword) {
             // Increment login attempts
-            if (user.incrementLoginAttempts) {
-              await user.incrementLoginAttempts();
-            } else {
-              // Fallback increment
-              await user.updateOne({ 
-                $inc: { loginAttempts: 1 },
-                ...(user.loginAttempts + 1 >= 5 ? {
-                  $set: {
-                    accountLocked: true,
-                    accountLockedUntil: new Date(Date.now() + 2 * 60 * 60 * 1000)
-                  }
-                } : {})
-              });
+            const newAttempts = (user.loginAttempts || 0) + 1;
+            const updateData = {
+              loginAttempts: newAttempts,
+            };
+
+            if (newAttempts >= 5) {
+              updateData.accountLocked = true;
+              updateData.accountLockedUntil = new Date(
+                Date.now() + 2 * 60 * 60 * 1000
+              );
             }
+
+            await User.findByIdAndUpdate(user._id, updateData);
             throw new Error("Invalid password");
           }
 
           // Success - reset login attempts and update last login
-          console.log("[AUTH] Password verified successfully, resetting login attempts");
-          if (user.resetLoginAttempts) {
-            await user.resetLoginAttempts();
-          } else {
-            // Fallback reset
-            await user.updateOne({
-              $unset: { accountLockedUntil: 1 },
-              $set: { accountLocked: false, loginAttempts: 0 }
-            });
-          }
-          await user.updateOne({ lastLoginAt: new Date() });
+          console.log(
+            "[AUTH] Password verified successfully, resetting login attempts"
+          );
+          await User.findByIdAndUpdate(user._id, {
+            accountLocked: false,
+            loginAttempts: 0,
+            accountLockedUntil: null,
+            lastLoginAt: new Date(),
+          });
 
           const returnUser = {
             id: user._id.toString(),
@@ -148,7 +136,7 @@ export const authOptions = {
             username: user.username,
             image: user.profilepic,
           };
-          
+
           console.log("[AUTH] Login successful for:", returnUser.email);
           return returnUser;
         } catch (error) {
@@ -163,9 +151,8 @@ export const authOptions = {
       authorization: { params: { prompt: "select_account" } },
     }),
     GitHubProvider({
-      // ✅ Fixed: Use consistent naming with .env.local
-      clientId: process.env.GITHUB_CLIENT_ID, // Changed from GITHUB_ID
-      clientSecret: process.env.GITHUB_CLIENT_SECRET, // Changed from GITHUB_SECRET
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
       authorization: {
         params: { scope: "read:user user:email", prompt: "select_account" },
       },
@@ -179,10 +166,7 @@ export const authOptions = {
         const emailFromElements =
           profile?.elements?.[0]?.["handle~"]?.emailAddress;
         const email =
-          profile?.email ||
-          profile?.emailAddress ||
-          emailFromElements ||
-          null;
+          profile?.email || profile?.emailAddress || emailFromElements || null;
         const firstName =
           profile?.localizedFirstName || profile?.firstName?.localized?.en_US;
         const lastName =
@@ -205,8 +189,8 @@ export const authOptions = {
   ],
 
   pages: {
-    signIn: "/auth", // ✅ unified page
-    error: "/auth",  // ✅ errors also go to /auth
+    signIn: "/auth",
+    error: "/auth",
   },
 
   callbacks: {
@@ -230,7 +214,6 @@ export const authOptions = {
           await connectDb();
         } catch (connErr) {
           console.error("MongoDB connection error during signIn:", connErr);
-          // Allow sign-in to proceed even if DB fails
           return true;
         }
 
@@ -238,9 +221,12 @@ export const authOptions = {
 
         if (!existingUser) {
           // Generate unique username
-          const baseUsername =
-            (user.name?.replace(/\s+/g, "").toLowerCase() ||
-              user.email.split("@")[0]).slice(0, 24);
+          const baseUsername = (
+            user.name?.replace(/\s+/g, "").toLowerCase() ||
+            user.email.split("@")[0]
+          )
+            .slice(0, 24)
+            .toLowerCase();
           let uniqueUsername = baseUsername;
           let suffix = 0;
 
@@ -255,24 +241,25 @@ export const authOptions = {
             profilepic: user.image,
             username: uniqueUsername,
             isOAuthUser: true,
-            isEmailVerified: true, // OAuth emails are pre-verified
-            oauthProviders: [{
-              provider: account.provider,
-              providerId: account.providerAccountId
-            }],
+            isEmailVerified: true,
+            oauthProviders: [
+              {
+                provider: account.provider,
+                providerId: account.providerAccountId,
+              },
+            ],
             lastLoginAt: new Date(),
           });
         } else {
           // Update existing OAuth user
           await existingUser.updateOne({
             lastLoginAt: new Date(),
-            // Add provider if not already present
             $addToSet: {
               oauthProviders: {
                 provider: account.provider,
-                providerId: account.providerAccountId
-              }
-            }
+                providerId: account.providerAccountId,
+              },
+            },
           });
         }
 

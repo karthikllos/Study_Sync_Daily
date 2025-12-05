@@ -1,5 +1,6 @@
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { ThemeProvider } from "next-themes";
 import SessionProvider from "../components/Sessionwrapper";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -23,7 +24,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Razorpay Payment Gateway */}
         <script
@@ -33,21 +34,23 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable}`}>
-        <SessionProvider>
-          <Navbar />
-          {children}
-          <Footer />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: "#363636",
-                color: "#fff",
-              },
-            }}
-          />
-        </SessionProvider>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <SessionProvider>
+            <Navbar />
+            {children}
+            <Footer />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "#363636",
+                  color: "#fff",
+                },
+              }}
+            />
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

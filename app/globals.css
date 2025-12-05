@@ -1,27 +1,30 @@
 @import "tailwindcss";
 
+/* * 🎨 Design Tokens (Keep them as they are for a consistent theme)
+ * These are already excellent for a modern, professional look.
+ */
 :root {
-  --background: #ffffff; /* Pure white professional background */
-  --foreground: #0f172a; /* Deep slate for professional text */
-  --accent-from: #3b82f6; /* Blue-500 - professional primary */
-  --accent-to: #1d4ed8; /* Blue-700 - deeper professional blue */
+  --background: #ffffff; 
+  --foreground: #0f172a; 
+  --accent-from: #3b82f6; 
+  --accent-to: #1d4ed8; 
   --accent-border: rgba(59, 130, 246, 0.2);
   --accent-ring: rgba(59, 130, 246, 0.4);
   --accent-shadow: rgba(59, 130, 246, 0.25);
-  --accent-solid: #2563eb; /* Blue-600 */
-  --surface: #f8fafc; /* Very light slate for cards */
-  --surface-2: #f1f5f9; /* Light slate background */
-  --surface-3: #e2e8f0; /* Slate-200 for borders */
+  --accent-solid: #2563eb; 
+  --surface: #f8fafc; 
+  --surface-2: #f1f5f9; 
+  --surface-3: #e2e8f0; 
   --input-bg: #ffffff;
-  --border: rgba(15, 23, 42, 0.08); /* Professional soft borders */
+  --border: rgba(15, 23, 42, 0.08); 
   --divide: rgba(15, 23, 42, 0.05);
-  --muted: #64748b; /* Slate-500 for muted text */
-  --success: #059669; /* Emerald-600 for success */
+  --muted: #64748b; 
+  --success: #059669; 
   --success-bg: rgba(5, 150, 105, 0.1);
-  --chart-primary: #3b82f6; /* Professional blue */
-  --chart-secondary: #8b5cf6; /* Purple-500 for secondary data */
-  --progress-bg: #e5e7eb; /* Gray-200 for progress */
-  --teal-accent: #0891b2; /* Sky-600 for professional accents */
+  --chart-primary: #3b82f6; 
+  --chart-secondary: #8b5cf6; 
+  --progress-bg: #e5e7eb; 
+  --teal-accent: #0891b2; 
 }
 
 @theme inline {
@@ -31,193 +34,185 @@
   --font-mono: var(--font-jetbrains-mono);
 }
 
+/* --- Light Mode Refined --- */
 .light {
-  --background: #663232; /* Pure white professional background */
-  --foreground: #0f172a; /* Deep slate for professional text */
-  --accent-from: #3b82f6; /* Blue-500 - professional primary */
-  --accent-to: #1d4ed8; /* Blue-700 - deeper professional blue */
-  --accent-border: rgba(59, 130, 246, 0.2);
-  --accent-ring: rgba(59, 130, 246, 0.4);
-  --accent-shadow: rgba(59, 130, 246, 0.25);
-  --accent-solid: #2563eb; /* Blue-600 */
-  --surface: #f8fafc; /* Very light slate for cards */
-  --surface-2: #f1f5f9; /* Light slate background */
-  --surface-3: #e2e8f0; /* Slate-200 for borders */
+  /* Using a softer white for better eye comfort than pure white */
+  --background: #fcfcfd; 
+  --surface: #ffffff; /* Pure white cards stand out slightly */
+  --surface-2: #f1f5f9; 
+  --surface-3: #e2e8f0; 
+  --border: rgba(15, 23, 42, 0.08);
   --input-bg: #ffffff;
-  --border: rgba(15, 23, 42, 0.08); /* Professional soft borders */
-  --divide: rgba(15, 23, 42, 0.05);
-  --muted: #64748b; /* Slate-500 for muted text */
-  --success: #059669; /* Emerald-600 for success */
-  --success-bg: rgba(5, 150, 105, 0.1);
-  --chart-primary: #3b82f6; /* Professional blue */
-  --chart-secondary: #8b5cf6; /* Purple-500 for secondary data */
-  --progress-bg: #e5e7eb; /* Gray-200 for progress */
-  --teal-accent: #0891b2; /* Sky-600 for professional accents */
 }
 
+/* --- Dark Mode Modernized for Contrast and Depth --- */
 .dark {
-  --background: #010103; /* Deep navy professional dark */
-  --foreground: #ffffff; /* Light slate text */
-  --accent-from: #b2e154; /* Blue-400 - bright but professional */
-  --accent-to: #3ee681; /* Blue-500 */
-  --accent-border: rgba(96, 250, 142, 0.2);
-  --accent-ring: rgba(38, 195, 86, 0.4);
-  --accent-shadow: rgba(90, 239, 130, 0.35);
-  --accent-solid: #1b5f51; /* Blue-400 */
-  --surface: #1e3b29; /* Slate-800 for professional dark cards */
-  --surface-2: #334155; /* Slate-700 */
-  --input-bg: #1e293b;
-  --border: rgba(248, 250, 252, 0.326); /* Subtle light borders */
-  --divide: rgba(248, 250, 252, 0.1);
-  --muted: #94a3b8; /* Slate-400 for muted text */
+  --background: #0d1117; /* GitHub/VS Code dark feel */
+  --foreground: #f0f6fc; /* Very light, accessible text */
+  --surface: #161b22; /* Darker, clearly defined card surface */
+  --surface-2: #21262d; 
+  --accent-from: #6699ff; /* Brighter accent for better visibility on dark */
+  --accent-to: #3366ff;
+  --teal-accent: #00bcd4; /* Brighter teal */
+  --border: rgba(240, 246, 252, 0.15); /* Soft light borders for depth */
+  --muted: #8b949e; 
+  --input-bg: #0d1117;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Add smooth font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Add a subtle global transition for theme changes */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* --- Modern Animations & Utilities --- */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-6px); } /* Reduced float for subtlety */
 }
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-
 
 @layer utilities {
   .animate-float {
-    animation: float 3s ease-in-out infinite;
+    animation: float 4s ease-in-out infinite; /* Slower animation */
   }
   
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
-  
-  /* FluxCRM inspired utility classes */
+  /* --- FluxCRM inspired utility classes (Enhanced) --- */
   .fluxcrm-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 16px; /* Slightly larger radius for a friendlier look */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02); /* Softer shadow */
+    transition: all 0.2s ease-out;
   }
   
+  .fluxcrm-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1), 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+
   .fluxcrm-button-primary {
-    background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
-    color: rgb(240, 240, 240);
-    border-radius: 8px;
-    padding: 10px 20px;
+    /* Subtle shift to a solid color and a more modern shadow */
+    background: var(--accent-solid); 
+    color: var(--background); /* Use the theme background for text for max contrast */
+    border-radius: 10px;
+    padding: 12px 24px;
     font-weight: 600;
-    box-shadow: 0 2px 4px var(--accent-shadow);
-    transition: all 0.2s ease;
+    box-shadow: 0 4px 8px var(--accent-shadow);
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth easing */
+    border: none;
   }
   
   .fluxcrm-button-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px var(--accent-shadow);
+    background: var(--accent-to); /* Deeper shade on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px var(--accent-shadow);
   }
   
+  /* New: Glassmorphism Card for Charts/Key Metrics */
+  .fluxcrm-glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    padding: 24px;
+    /* Use this class primarily over a blurred background/image */
+  }
+
   .fluxcrm-progress-bar {
-    background: var(--progress-bg);
-    border-radius: 6px;
+    background: var(--surface-3); /* Use a defined surface color */
+    border-radius: 9999px; /* Full pill shape */
+    height: 10px;
     overflow: hidden;
   }
   
   .fluxcrm-progress-fill {
-    background: linear-gradient(90deg, var(--accent-from), var(--teal-accent));
+    /* Use a solid fill for cleaner look, less gradient */
+    background-color: var(--accent-solid); 
     height: 100%;
-    border-radius: 6px;
-    transition: width 0.3s ease;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   .fluxcrm-metric-card {
+    /* The gradient is good, let's just refine the inner elements */
     background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
     color: white;
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 16px; 
+    padding: 32px; /* More padding for impact */
     position: relative;
     overflow: hidden;
+    isolation: isolate; /* To ensure ::before is clipped */
   }
   
   .fluxcrm-metric-card::before {
     content: '';
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 100px;
-    height: 100px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    transform: translate(30px, -30px);
+    bottom: -50%; /* Moves the ripple/orb to the corner */
+    left: -20%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 10%, transparent 70%);
+    opacity: 0.8;
+    z-index: -1;
+    transform: rotate(15deg);
   }
   
   .fluxcrm-chart-tooltip {
     background: var(--surface);
+    /* Adding a subtle border-radius and shadow for a 'floating' effect */
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
     font-size: 14px;
   }
 }
 
-/* Updated button-64 to match FluxCRM aesthetic */
+/* --- Animated 'Button-64' Modernized --- */
 .button-64 {
-  align-items: center;
+  /* Keep the core functionality, but smooth the aesthetics */
   background-image: linear-gradient(135deg, var(--accent-from), var(--accent-to), var(--teal-accent));
   border: 0;
   border-radius: 12px;
-  box-shadow: var(--accent-shadow) 0 8px 24px -4px;
-  box-sizing: border-box;
-  color: #FFFFFF;
-  display: flex;
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  justify-content: center;
-  line-height: 1.5;
-  max-width: 100%;
-  min-width: 140px;
-  padding: 2px;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  box-shadow: var(--accent-shadow) 0 10px 30px -5px; /* Deeper shadow */
+  font-size: 17px; /* Slightly refined size */
+  font-weight: 700; /* Bolder font */
+  padding: 3px; /* A little more gradient exposure */
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .button-64:active,
 .button-64:hover {
   outline: 0;
-  transform: translateY(-1px);
-  box-shadow: var(--accent-shadow) 0 12px 32px -4px;
+  transform: translateY(-3px); /* More pronounced lift on hover */
+  box-shadow: var(--accent-shadow) 0 16px 40px -6px;
 }
 
 .button-64 span {
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 14px 28px;
-  border-radius: 10px;
-  width: 100%;
-  height: 100%;
-  transition: all 0.2s ease;
+  /* Glassmorphism effect for the inner span */
+  background-color: rgba(255, 255, 255, 0.05); /* Lighter base for glass */
   backdrop-filter: blur(10px);
+  padding: 14px 30px; 
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle light border */
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .button-64:hover span {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  /* Less transparent on hover for a subtle change */
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Responsive check (Good job keeping this) */
 @media (min-width: 768px) {
   .button-64 {
-    font-size: 18px;
-    min-width: 180px;
+    font-size: 19px;
   }
 }
