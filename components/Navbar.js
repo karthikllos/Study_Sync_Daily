@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Moon, Sun, Users, CreditCard, ChevronDown } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
+import CreditBadge from "./CreditBadge";
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -211,6 +212,9 @@ const Navbar = () => {
           </div>
         </div>
       )}
+
+      {/* Credit Badge - only visible for signed-in users */}
+      {session && <CreditBadge />}
     </nav>
   );
 };

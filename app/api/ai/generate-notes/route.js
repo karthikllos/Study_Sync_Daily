@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "../../../../lib/auth";
+import { enforceCredits, CREDIT_COSTS } from "../../../../lib/creditEnforcement";
 import connectDb from "../../../../lib/connectDb";
 import User from "../../../../models/user";
 import { generateQuiz } from "../../../../lib/aiService";
@@ -25,73 +26,66 @@ async function requireSession() {
  */
 export async function POST(request) {
   try {
-    const session = await requireSession();
-    if (!session) {
+    console.log("[AI Notes] Creating AI notes");
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { subject, rawNotes } = await request.json();
+    const body = await request.json();
+    const { content } = body || {};
 
-    if (!subject || typeof subject !== "string") {
-      return NextResponse.json(
-        { error: "subject is required" },
-        { status: 400 },
-      );
+    if (!content) {
+      return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
     await connectDb();
 
-    // Load user
-    const userId = session.user.id || session.user.sub || session.user.email;
-    let userDoc = null;
-    if (userId && /^[0-9a-fA-F]{24}$/.test(userId)) {
-      userDoc = await User.findById(userId);
-    } else if (session.user?.email) {
-      userDoc = await User.findOne({ email: session.user.email.toLowerCase().trim() });
-    }
+    const user = await User.findOne({
+      email: session.user.email.toLowerCase().trim(),
+    });
 
-    if (!userDoc) {
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check subscription / credit status
-    const now = new Date();
-    const hasActiveSubscription =
-      !!userDoc.isProSubscriber &&
-      (!userDoc.subscriptionEndsAt || new Date(userDoc.subscriptionEndsAt) > now);
-
-    if (!hasActiveSubscription && (!userDoc.aiCredits || userDoc.aiCredits <= 0)) {
+    // Enforce credits
+    const creditCheck = await enforceCredits(user._id.toString(), "AI_NOTES");
+    if (!creditCheck.success) {
+      console.warn("[AI Notes] Insufficient credits for user:", user._id);
       return NextResponse.json(
         {
-          error: "AI credits exhausted. Upgrade to StudySync Pro or purchase more credits.",
-          code: "INSUFFICIENT_CREDITS",
+          error: creditCheck.message,
+          creditsRemaining: creditCheck.creditsRemaining,
         },
-        { status: 402 },
+        { status: creditCheck.code || 400 }
       );
     }
 
-    if (!hasActiveSubscription) {
-      // Standard user: consume one AI credit
-      userDoc.aiCredits = (userDoc.aiCredits || 0) - 1;
-      if (userDoc.aiCredits < 0) userDoc.aiCredits = 0;
-      await userDoc.save();
-    }
+    // Process AI notes (call your AI service)
+    const aiGeneratedNotes = await generateAINotes(content); // Your AI function
 
-    // Generate structured quiz-style notes from the subject + raw notes
-    const { questions } = await generateQuiz(subject, rawNotes || "");
+    console.log("[AI Notes] Successfully created", {
+      userId: user._id,
+      creditsDeducted: creditCheck.cost,
+      creditsRemaining: creditCheck.creditsRemaining,
+    });
 
     return NextResponse.json(
       {
-        ok: true,
-        subject,
-        questions,
-        isProSubscriber: hasActiveSubscription,
-        remainingCredits: hasActiveSubscription ? userDoc.aiCredits : userDoc.aiCredits,
+        success: true,
+        notes: aiGeneratedNotes,
+        creditsUsed: creditCheck.cost,
+        creditsRemaining: creditCheck.creditsRemaining,
       },
-      { status: 200 },
+      { status: 200 }
     );
-  } catch (err) {
-    console.error("AI generate-notes error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error) {
+    console.error("[AI Notes] Error:", error.message);
+    return NextResponse.json(
+      { error: "Failed to generate notes", details: error.message },
+      { status: 500 }
+    );
   }
 }

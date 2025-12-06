@@ -82,8 +82,8 @@ const UserSchema = new mongoose.Schema(
     // AI credits for micro-transaction features
     aiCredits: {
       type: Number,
-      default: 0,
-      min: [0, "aiCredits cannot be negative"]
+      default: 5, // Free users get 5 monthly credits
+      min: 0,
     },
 
     // Subscription fields for StudySync Pro
@@ -97,7 +97,7 @@ const UserSchema = new mongoose.Schema(
     },
     subscriptionPlan: {
       type: String,
-      enum: ["Free", "Pro", "Pro Max"],
+      enum: ["Free", "Starter", "Pro", "Pro Max", "Premium"],
       default: "Free",
     },
     subscriptionStatus: {
@@ -109,6 +109,18 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    creditMonthResetDate: {
+      type: Date,
+      default: () => {
+        const date = new Date();
+        date.setDate(1);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      },
+    },
+    lastCreditPurchaseDate: Date,
+    lastCreditPurchaseAmount: Number,
+    lastCreditPaymentId: String,
 
     // Gamification: Study streak counter
     studyStreak: {
