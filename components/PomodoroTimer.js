@@ -1,150 +1,225 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 
-const FOCUS_SECONDS = 25 * 60; // 25 minutes
-const BREAK_SECONDS = 5 * 60; // 5 minutes
+const FOCUS_SECONDS = 25 * 60;
+const SHORT_BREAK_SECONDS = 5 * 60;
+const LONG_BREAK_SECONDS = 15 * 60;
+const CYCLE_BEFORE_LONG_BREAK = 4;
 
-/**
- * PomodoroTimer
- *
- * Props:
- *  - taskId (string, required): AcademicTask _id to credit time against.
- */
 export default function PomodoroTimer({ taskId }) {
-  const [mode, setMode] = useState("focus"); // "focus" | "break"
+  const [mode, setMode] = useState("focus");        // focus | short | long
   const [remaining, setRemaining] = useState(FOCUS_SECONDS);
   const [isRunning, setIsRunning] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
 
-  // Track how many focus seconds in the current block have not yet been synced.
-  const unsyncedFocusSecondsRef = useRef(0);
+  const unsyncedFocusRef = useRef(0);
 
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (seconds % 60).toString().padStart(2, "0");
+  const beepRef = useRef(null);
+
+  const format = (sec) => {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
     return `${m}:${s}`;
   };
 
-  const syncTimeToServer = useCallback(
+  const syncTime = useCallback(
     async (seconds) => {
-      if (!taskId || !seconds || seconds <= 0) return;
+      if (!taskId || seconds <= 0) return;
 
-      const minutesDelta = seconds / 60;
       try {
         setIsSyncing(true);
         await fetch("/api/tasks", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: taskId, actualDurationDelta: minutesDelta }),
+          body: JSON.stringify({
+            id: taskId,
+            actualDurationDelta: seconds / 60,
+          }),
         });
-      } catch (err) {
-        console.error("Failed to sync Pomodoro time:", err);
       } finally {
         setIsSyncing(false);
       }
     },
-    [taskId],
+    [taskId]
   );
 
-  const flushUnsyncedFocus = useCallback(async () => {
-    const seconds = unsyncedFocusSecondsRef.current;
-    if (!seconds) return;
-    unsyncedFocusSecondsRef.current = 0;
-    await syncTimeToServer(seconds);
-  }, [syncTimeToServer]);
+  const flush = useCallback(async () => {
+    const pending = unsyncedFocusRef.current;
+    if (pending > 0) {
+      unsyncedFocusRef.current = 0;
+      await syncTime(pending);
+    }
+  }, [syncTime]);
 
-  // Core ticking effect
+  const getSessionDuration = (mode) => {
+    if (mode === "focus") return FOCUS_SECONDS;
+    if (mode === "long") return LONG_BREAK_SECONDS;
+    return SHORT_BREAK_SECONDS;
+  };
+
+  const switchMode = useCallback(() => {
+    if (mode === "focus") {
+      const nextCount = sessionCount + 1;
+      setSessionCount(nextCount);
+
+      if (nextCount % CYCLE_BEFORE_LONG_BREAK === 0) {
+        setMode("long");
+        return LONG_BREAK_SECONDS;
+      }
+
+      setMode("short");
+      return SHORT_BREAK_SECONDS;
+    }
+
+    setMode("focus");
+    return FOCUS_SECONDS;
+  }, [mode, sessionCount]);
+
   useEffect(() => {
-    if (!isRunning) return undefined;
+    if (!isRunning) return;
 
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setRemaining((prev) => {
         if (prev <= 1) {
-          // Session finished
           if (mode === "focus") {
-            // Flush any remaining unsynced focus seconds
-            const leftover = unsyncedFocusSecondsRef.current + (prev > 0 ? 1 : 0);
-            unsyncedFocusSecondsRef.current = 0;
-            if (leftover > 0) {
-              // Fire and forget; no need to await inside setState
-              syncTimeToServer(leftover);
-            }
+            const leftover = unsyncedFocusRef.current + (prev > 0 ? 1 : 0);
+            unsyncedFocusRef.current = 0;
+            if (leftover > 0) syncTime(leftover);
           }
 
-          // Auto-switch between focus and break
-          if (mode === "focus") {
-            setMode("break");
-            return BREAK_SECONDS;
-          }
-          setMode("focus");
-          return FOCUS_SECONDS;
+          try {
+            beepRef.current?.play();
+          } catch {}
+
+          return switchMode();
         }
 
-        const next = prev - 1;
         if (mode === "focus") {
-          unsyncedFocusSecondsRef.current += 1;
+          unsyncedFocusRef.current += 1;
         }
-        return next;
+
+        return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [isRunning, mode, syncTimeToServer]);
+    return () => clearInterval(timer);
+  }, [isRunning, mode, syncTime, switchMode]);
 
-  const handleStartPause = async () => {
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && isRunning) {
+        setIsRunning(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, [isRunning]);
+
+  const toggle = async () => {
     if (isRunning) {
-      // Pausing: flush any accumulated focus time
-      await flushUnsyncedFocus();
+      await flush();
       setIsRunning(false);
     } else {
       setIsRunning(true);
     }
   };
 
-  const handleReset = async () => {
-    // Reset timer and flush partial focus time if any
-    await flushUnsyncedFocus();
+  const reset = async () => {
+    await flush();
     setIsRunning(false);
     setMode("focus");
     setRemaining(FOCUS_SECONDS);
+    setSessionCount(0);
   };
 
   if (!taskId) return null;
 
+  const total = getSessionDuration(mode);
+  const progress = 1 - remaining / total;
+  const isFocus = mode === "focus";
+
   return (
-    <div className="flex items-center gap-3 text-xs sm:text-sm">
+    <div className="flex items-center gap-4 text-xs sm:text-sm">
+
+      <div className="relative">
+        <svg width="48" height="48">
+          <circle
+            cx="24"
+            cy="24"
+            r="20"
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+            className="text-gray-300 dark:text-gray-700"
+          />
+          <circle
+            cx="24"
+            cy="24"
+            r="20"
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+            strokeDasharray={2 * Math.PI * 20}
+            strokeDashoffset={(1 - progress) * 2 * Math.PI * 20}
+            className={
+              isFocus
+                ? "text-emerald-500 transition-all duration-500"
+                : mode === "long"
+                ? "text-purple-500 transition-all duration-500"
+                : "text-blue-500 transition-all duration-500"
+            }
+            strokeLinecap="round"
+          />
+        </svg>
+
+        <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px]">
+          {format(remaining)}
+        </div>
+      </div>
+
       <div
-        className={`px-2 py-1 rounded-md font-mono border ${
-          mode === "focus"
+        className={`px-2 py-1 rounded-md border font-mono ${
+          isFocus
             ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 text-emerald-700 dark:text-emerald-200"
+            : mode === "long"
+            ? "bg-purple-50 dark:bg-purple-900/20 border-purple-400 text-purple-700 dark:text-purple-200"
             : "bg-blue-50 dark:bg-blue-900/20 border-blue-400 text-blue-700 dark:text-blue-200"
         }`}
       >
-        <span className="mr-1 uppercase tracking-wide">
-          {mode === "focus" ? "Focus" : "Break"}
-        </span>
-        <span>{formatTime(remaining)}</span>
+        {isFocus ? "Focus" : mode === "long" ? "Long Break" : "Break"}
       </div>
+
       <button
-        type="button"
-        onClick={handleStartPause}
+        onClick={toggle}
         className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         {isRunning ? "Pause" : "Start"}
       </button>
+
       <button
-        type="button"
-        onClick={handleReset}
-        className="px-2 py-1 rounded-md border border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+        onClick={reset}
+        className="px-2 py-1 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
       >
         Reset
       </button>
+
       {isSyncing && (
-        <span className="text-[10px] text-gray-400">Updating time…</span>
+        <span className="text-[10px] text-gray-400">Updating…</span>
       )}
+
+      <audio
+        ref={beepRef}
+        src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA="
+      />
     </div>
   );
 }

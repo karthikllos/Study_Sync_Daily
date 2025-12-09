@@ -6,67 +6,71 @@ import User from "../../../../models/user";
 
 export const dynamic = "force-dynamic";
 
-// Validate blueprint data
+/**
+ * Validate blueprint fields
+ */
 function validateBlueprint(data) {
   const errors = [];
 
   if (data.routines && !Array.isArray(data.routines)) {
-    errors.push("routines must be an array");
+    errors.push("Routines must be an array.");
   }
-
   if (data.assignments && !Array.isArray(data.assignments)) {
-    errors.push("assignments must be an array");
+    errors.push("Assignments must be an array.");
   }
-
   if (data.microGoals && !Array.isArray(data.microGoals)) {
-    errors.push("microGoals must be an array");
+    errors.push("MicroGoals must be an array.");
   }
 
   return errors;
 }
 
+/**
+ * GET — Fetch existing blueprint or return today's empty blueprint if none exists.
+ */
 export async function GET(request) {
   try {
-    console.log("[Blueprint] 📋 Fetching daily blueprint");
-
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
-      console.warn("[Blueprint] ❌ Unauthorized GET attempt");
+      console.warn("[Blueprint] Unauthorized GET attempt");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await connectDb();
 
-    const user = await User.findOne({
-      email: session.user.email.toLowerCase().trim(),
-    })
+    const userEmail = session.user.email.toLowerCase().trim();
+    const user = await User.findOne({ email: userEmail })
       .select("_id dailyBlueprint")
       .lean();
 
     if (!user) {
-      console.error("[Blueprint] ❌ User not found:", session.user.email);
+      console.error("[Blueprint] User not found:", userEmail);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Return existing blueprint or empty structure
-    const blueprint = user.dailyBlueprint || {
-      userId: user._id,
-      date: new Date().toISOString().split("T")[0],
-      routines: [],
-      assignments: [],
-      microGoals: [],
-      focusPrediction: null,
-      createdAt: new Date(),
-    };
+    const today = new Date().toISOString().split("T")[0];
+    const existingBlueprint = user.dailyBlueprint;
 
-    console.log("[Blueprint] ✅ Blueprint fetched for user:", user._id);
+    // FIXED: Persist for entire day unless explicitly overwritten by POST
+    const blueprint =
+      existingBlueprint && existingBlueprint.date === today
+        ? existingBlueprint
+        : {
+            userId: user._id,
+            date: today,
+            routines: [],
+            assignments: [],
+            microGoals: [],
+            focusPrediction: null,
+            createdAt: new Date(),
+          };
 
-    return NextResponse.json(
-      { success: true, blueprint },
-      { status: 200 }
-    );
+    console.log("[Blueprint] Fetched blueprint for user:", user._id);
+
+    return NextResponse.json({ success: true, blueprint }, { status: 200 });
   } catch (error) {
-    console.error("[Blueprint] ❌ GET error:", error.message);
+    console.error("[Blueprint] GET error:", error.message);
     return NextResponse.json(
       { error: "Failed to fetch blueprint", details: error.message },
       { status: 500 }
@@ -74,28 +78,25 @@ export async function GET(request) {
   }
 }
 
+/**
+ * POST — Save or update today's blueprint
+ */
 export async function POST(request) {
   try {
-    console.log("[Blueprint] 📝 Creating/updating blueprint");
-
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
-      console.warn("[Blueprint] ❌ Unauthorized POST attempt");
+      console.warn("[Blueprint] Unauthorized POST attempt");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { routines = [], assignments = [], microGoals = [], focusPrediction } = body || {};
+    const { routines = [], assignments = [], microGoals = [], focusPrediction } = body;
 
-    // Validate input
-    const validationErrors = validateBlueprint({
-      routines,
-      assignments,
-      microGoals,
-    });
-
+    // Input validation
+    const validationErrors = validateBlueprint({ routines, assignments, microGoals });
     if (validationErrors.length > 0) {
-      console.warn("[Blueprint] ⚠️ Validation errors:", validationErrors);
+      console.warn("[Blueprint] Validation errors:", validationErrors);
       return NextResponse.json(
         { error: "Validation failed", details: validationErrors },
         { status: 400 }
@@ -104,31 +105,39 @@ export async function POST(request) {
 
     await connectDb();
 
-    const blueprint = {
-      date: new Date().toISOString().split("T")[0],
+    const userEmail = session.user.email.toLowerCase().trim();
+    const today = new Date().toISOString().split("T")[0];
+
+    // New blueprint structure
+    const blueprintData = {
+      date: today,
       routines,
       assignments,
       microGoals,
       focusPrediction,
-      createdAt: new Date(),
       updatedAt: new Date(),
     };
 
+    // Save to user
     const user = await User.findOneAndUpdate(
-      { email: session.user.email.toLowerCase().trim() },
+      { email: userEmail },
       {
-        dailyBlueprint: blueprint,
+        dailyBlueprint: blueprintData,
         lastBlueprintUpdate: new Date(),
       },
-      { new: true, runValidators: true }
-    ).select("_id dailyBlueprint");
+      {
+        new: true,
+        runValidators: true,
+        select: "_id dailyBlueprint",
+      }
+    );
 
     if (!user) {
-      console.error("[Blueprint] ❌ User not found:", session.user.email);
+      console.error("[Blueprint] User not found:", userEmail);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("[Blueprint] ✅ Blueprint updated for user:", user._id);
+    console.log("[Blueprint] Updated blueprint for user:", user._id);
 
     return NextResponse.json(
       {
@@ -139,7 +148,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[Blueprint] ❌ POST error:", error.message);
+    console.error("[Blueprint] POST error:", error.message);
     return NextResponse.json(
       { error: "Failed to update blueprint", details: error.message },
       { status: 500 }

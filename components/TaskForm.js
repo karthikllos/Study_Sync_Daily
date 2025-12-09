@@ -2,18 +2,21 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ClipboardCheck, Repeat2, Calendar, Clock, Loader2, BookOpen, Hash } from "lucide-react";
 
 export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
   const router = useRouter();
-
-  // mode: "task" | "routine"
-  const [mode, setMode] = useState(initialData?.daysOfWeek ? "routine" : "task");
+  
+  // Determine if we are starting with a Task or a Routine based on initialData
+  const initialMode = initialData?.daysOfWeek?.length ? "routine" : "task";
+  const [mode, setMode] = useState(initialMode);
 
   // Common
-  const [title, setTitle] = useState(initialData?.title || "");
+  const [title, setTitle] = useState(initialData?.title || initialData?.name || "");
   const [subject, setSubject] = useState(initialData?.subject || "");
   const [type, setType] = useState(initialData?.type || "assignment");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Task-specific
   const [dueDate, setDueDate] = useState(
@@ -32,15 +35,16 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
     setDaysOfWeek((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   };
 
+  // --- Form Submission Logic ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage("");
 
     try {
       if (mode === "task") {
-        // minimal validation
         if (!title.trim() || !dueDate) {
-          alert("Please provide a title and due date for the task.");
+          setErrorMessage("Please provide a Title and a Due Date for the task.");
           setLoading(false);
           return;
         }
@@ -54,21 +58,20 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
         };
 
         const res = await fetch("/api/tasks", {
-          method: "POST",
+          method: initialData ? "PUT" : "POST", // Use PUT if updating existing data
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Failed to create task");
+        if (!res.ok) throw new Error(data?.error || "Failed to save task");
+        
         onSuccess(data);
-        // optional: refresh or route
         router.refresh();
-        alert("Task created");
       } else {
         // routine
         if (!title.trim() || daysOfWeek.length === 0) {
-          alert("Please provide a name and select at least one day for the routine.");
+          setErrorMessage("Please provide a Title and select at least one Day for the routine.");
           setLoading(false);
           return;
         }
@@ -79,27 +82,40 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
           daysOfWeek: daysOfWeek.sort((a, b) => a - b),
           startTime,
           duration: Number(duration) || 60,
-          isFixed: true,
+          isFixed: true, // Assuming all created routines are fixed
         };
 
         const res = await fetch("/api/routines", {
-          method: "POST",
+          method: initialData ? "PUT" : "POST", // Use PUT if updating existing data
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Failed to create routine");
+        if (!res.ok) throw new Error(data?.error || "Failed to save routine");
+        
         onSuccess(data);
         router.refresh();
-        alert("Routine created");
       }
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Submit failed");
+      setErrorMessage(err?.message || "Submit failed. Check server connection.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setSubject("");
+    setType("assignment");
+    setDueDate("");
+    setEstimatedDuration(60);
+    setDaysOfWeek([]);
+    setStartTime("08:00");
+    setDuration(60);
+    setErrorMessage("");
+    // Keep mode as is, as it's the user's current focus
   };
 
   const days = [
@@ -113,59 +129,84 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-2xl p-6 shadow">
-      <div className="flex items-center gap-3 mb-4">
+    <form onSubmit={handleSubmit} className="w-full bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-2xl border border-gray-100 dark:border-gray-700">
+      
+      {/* --- Mode Toggle Header --- */}
+      <div className="flex items-center gap-3 mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
         <button
           type="button"
           onClick={() => setMode("task")}
-          className={`px-4 py-2 rounded-lg font-medium ${
-            mode === "task" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700"
+          className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 rounded-xl font-bold transition-all duration-300 ${
+            mode === "task" 
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30" 
+              : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
-          Task
+          <ClipboardCheck className="h-5 w-5" />
+          One-Time Task
         </button>
         <button
           type="button"
           onClick={() => setMode("routine")}
-          className={`px-4 py-2 rounded-lg font-medium ${
-            mode === "routine" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700"
+          className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 rounded-xl font-bold transition-all duration-300 ${
+            mode === "routine" 
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30" 
+              : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
-          Routine
+          <Repeat2 className="h-5 w-5" />
+          Recurring Routine
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Title</label>
+      {/* --- Error Message --- */}
+      {errorMessage && (
+        <div className="p-4 mb-4 text-sm font-medium rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Title Input */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+            {mode === "task" ? "Task Title" : "Routine Name"} <span className="text-red-500">*</span>
+          </label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
-            placeholder="e.g., Read Chapter 5"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
+            placeholder={mode === "task" ? "e.g., Finalize project report" : "e.g., Evening language practice"}
             required
           />
         </div>
 
+        {/* Subject Input */}
         <div>
-          <label className="block text-sm font-medium mb-1">Subject</label>
+          <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-emerald-500"/> Subject/Context
+          </label>
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
-            placeholder="e.g., Biology"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
+            placeholder="e.g., Calculus, Python, Wellness"
           />
         </div>
 
+        {/* Type Select */}
         <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
+          <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <Hash className="h-4 w-4 text-emerald-500"/> Category Type
+          </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none transition duration-300"
           >
             <option value="assignment">Assignment</option>
-            <option value="exam">Exam</option>
+            <option value="exam">Exam Prep</option>
             <option value="reading">Reading</option>
             <option value="micro_goal">Micro Goal</option>
             <option value="lecture_prep">Lecture Prep</option>
@@ -173,43 +214,51 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
         </div>
 
         {mode === "task" ? (
+          /* --- TASK-SPECIFIC FIELDS --- */
           <>
             <div>
-              <label className="block text-sm font-medium mb-1">Due Date</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-emerald-500"/> Due Date & Time <span className="text-red-500">*</span>
+              </label>
               <input
                 type="datetime-local"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Estimated duration (mins)</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-500"/> Estimated Duration (mins)
+              </label>
               <input
                 type="number"
                 min={15}
                 value={estimatedDuration}
                 onChange={(e) => setEstimatedDuration(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
               />
             </div>
           </>
         ) : (
+          /* --- ROUTINE-SPECIFIC FIELDS --- */
           <>
-            <div>
-              <label className="block text-sm font-medium mb-1">Days of Week</label>
-              <div className="flex flex-wrap gap-2">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-emerald-500"/> Recurrence Days <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2 justify-between">
                 {days.map((d) => (
                   <button
                     key={d.id}
                     type="button"
                     onClick={() => toggleDay(d.id)}
-                    className={`px-3 py-2 rounded-lg text-sm ${
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-w-[50px] ${
                       daysOfWeek.includes(d.id)
-                        ? "bg-emerald-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-500"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                     }`}
                   >
                     {d.label}
@@ -219,54 +268,61 @@ export default function TaskForm({ initialData = null, onSuccess = () => {} }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Start Time</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-500"/> Start Time
+              </label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Duration (mins)</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-500"/> Duration (mins)
+              </label>
               <input
                 type="number"
                 min={5}
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white transition duration-300"
               />
             </div>
           </>
         )}
       </div>
 
-      <div className="mt-6 flex items-center gap-3">
+      {/* --- Action Buttons --- */}
+      <div className="mt-8 flex items-center gap-4 border-t pt-6 border-gray-100 dark:border-gray-700">
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-60"
+          className="flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-md shadow-emerald-500/30 transition duration-300"
         >
-          {loading ? "Saving..." : mode === "task" ? "Create Task" : "Create Routine"}
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : mode === "task" ? (
+            <>
+              <ClipboardCheck className="h-5 w-5" />
+              {initialData ? "Update Task" : "Create Task"}
+            </>
+          ) : (
+            <>
+              <Repeat2 className="h-5 w-5" />
+              {initialData ? "Update Routine" : "Create Routine"}
+            </>
+          )}
         </button>
 
         <button
           type="button"
-          onClick={() => {
-            // reset
-            setTitle("");
-            setSubject("");
-            setType("assignment");
-            setDueDate("");
-            setEstimatedDuration(60);
-            setDaysOfWeek([]);
-            setStartTime("08:00");
-            setDuration(60);
-          }}
-          className="px-4 py-3 rounded-lg border"
+          onClick={resetForm}
+          className="px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 font-medium transition duration-300"
         >
-          Reset
+          Reset Form
         </button>
       </div>
     </form>

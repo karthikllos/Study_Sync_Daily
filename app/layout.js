@@ -5,7 +5,7 @@ import SessionProvider from "../components/Sessionwrapper";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "./globals.css";
-import { initTaskReminderCron } from "@/lib/cronJobs";
+import { initTaskReminderCron } from "../lib/cronJobs";
 
 const inter = Inter({
   variable: "--font-inter",
