@@ -97,7 +97,7 @@ export default function PricingPage() {
             toast.dismiss(loadingToast);
 
             const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || orderData.key, 
+                key:   orderData.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 
                 amount: orderData.amount, 
                 currency: orderData.currency || 'INR',
                 name: 'StudySync Daily',
