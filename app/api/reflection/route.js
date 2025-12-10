@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import connectDb from "../../../lib/connectDb";
 import User from "../../../models/user";
+import { generateSummary } from "../../../lib/aiService";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,20 @@ export async function POST(req) {
       createdAt: new Date(),
     };
 
+    if (!reflection.aiSummary) {
+        // Prepare data for AI summary generation
+        const summaryData = {
+            energyRating,
+            focusRating,
+            tasksCompletedCount,
+            totalHoursSpent,
+            notes: aiSummary, // Pass the optional user notes/summary text
+        };
+
+        const aiResult = await generateSummary(summaryData);
+        reflection.aiSummary = aiResult.summary;
+    }
+
     // Update user's reflections array
     const user = await User.findOneAndUpdate(
       { email: session.user.email.toLowerCase().trim() },
@@ -77,6 +92,8 @@ export async function POST(req) {
       console.error("[Reflection] ❌ User not found");
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    
 
     console.log("[Reflection] ✅ Reflection saved for user:", user._id);
 

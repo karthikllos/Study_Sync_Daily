@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
+// FIX 1: Import the shared, cached database connection helper
+import connectDb from "../../../../lib/connectDb"; 
 import User from "../../../../models/user";
+// FIX 2: Use a standard ES module import for the email service
+import { sendVerificationEmail } from "../../../../lib/emailService"; 
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +11,14 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
+    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
 
     if (!token) {
-      return NextResponse.redirect(new URL('/auth?error=InvalidToken', request.url));
+      return NextResponse.redirect(new URL('/auth?error=InvalidToken', baseUrl));
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    // FIX 1: Use the connectDb helper
+    await connectDb();
 
     // Find user with this verification token
     const user = await User.findOne({
@@ -22,7 +27,7 @@ export async function GET(request) {
     });
 
     if (!user) {
-      return NextResponse.redirect(new URL('/auth?error=ExpiredToken', request.url));
+      return NextResponse.redirect(new URL('/auth?error=ExpiredToken', baseUrl));
     }
 
     // Update user as verified
@@ -35,11 +40,12 @@ export async function GET(request) {
     });
 
     // Redirect to success page
-    return NextResponse.redirect(new URL('/auth?verified=true', request.url));
+    return NextResponse.redirect(new URL('/auth?verified=true', baseUrl));
 
   } catch (error) {
     console.error("Email verification error:", error);
-    return NextResponse.redirect(new URL('/auth?error=VerificationError', request.url));
+    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
+    return NextResponse.redirect(new URL('/auth?error=VerificationError', baseUrl));
   }
 }
 
@@ -54,15 +60,19 @@ export async function POST(request) {
       );
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    // FIX 1: Use the connectDb helper
+    await connectDb();
 
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
 
+    // Note: It's good practice to respond with a generic success message
+    // even if the user isn't found, to prevent email enumeration.
     if (!user) {
+      console.warn(`Attempted resend for non-existent email: ${email}`);
       return NextResponse.json(
-        { error: "No account found with this email" },
-        { status: 404 }
+        { message: "If an account exists, a verification email has been sent." },
+        { status: 200 }
       );
     }
 
@@ -73,9 +83,9 @@ export async function POST(request) {
       );
     }
 
-    // Generate new verification token
+    // Generate new verification token (using your provided non-crypto method for consistency)
     const verificationToken = Math.random().toString(36).substring(2, 15) + 
-                            Math.random().toString(36).substring(2, 15);
+                             Math.random().toString(36).substring(2, 15);
 
     // Update user with new token
     await user.updateOne({
@@ -85,7 +95,7 @@ export async function POST(request) {
 
     // Send verification email
     try {
-      const { sendVerificationEmail } = require("../../../../lib/emailService");
+      // FIX 2: sendVerificationEmail is imported at the top
       await sendVerificationEmail(user.email, verificationToken);
       
       return NextResponse.json({

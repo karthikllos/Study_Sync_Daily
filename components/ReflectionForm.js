@@ -50,15 +50,17 @@ export default function ReflectionForm({ date = new Date(), onClose = () => {} }
   const [submitting, setSubmitting] = useState(false);
 
   /**
-   * FIX: The useEffect is corrected. 
-   * It fetches data on mount/date change, and the cleanup function is removed
-   * to stop the maximum update depth exceeded error.
+   * FIX: The dependency array is changed to empty ([]).
+   * The fetch logic is for the "daily" blueprint and does not rely on the `date` prop
+   * inside the effect, so it should only run on mount to prevent the infinite loop
+   * if the parent component passes an unstable `date` object.
    */
   useEffect(() => {
     const fetchTasks = async () => {
       try {
         setLoading(true);
         
+        // Fetch blueprint for today
         const blueprintRes = await fetch("/api/planner/blueprint");
         if (!blueprintRes.ok) throw new Error("Failed to fetch blueprint");
         
@@ -90,8 +92,7 @@ export default function ReflectionForm({ date = new Date(), onClose = () => {} }
 
     fetchTasks();
     
-    // IMPORTANT FIX: Removed the cleanup function that called setState, which caused the loop.
-  }, [date]); 
+  }, []); // <-- CRITICAL FIX: Empty dependency array
 
   // Handler to toggle task completion status
   const toggleTaskCompletion = (taskId) => {
@@ -141,15 +142,22 @@ export default function ReflectionForm({ date = new Date(), onClose = () => {} }
       const uncompletedTaskIds = tasks
         .map((t) => t.id)
         .filter((id) => !completedTaskIds.includes(id));
+      
+      // Note: The reflection API expects `uncompletedTasks` as an array of strings (names/titles)
+      // in the User model, but the form payload uses an array of task IDs.
+      // We will map the IDs back to titles for consistency with the API's schema fields.
+      const uncompletedTaskTitles = tasks
+        .filter((t) => uncompletedTaskIds.includes(t.id))
+        .map((t) => t.title);
 
       const payload = {
         date: date.toISOString(),
         energyRating: Number(energyRating),
         focusRating: Number(focusRating),
-        completedTasks: completedTaskIds,
-        uncompletedTasks: uncompletedTaskIds,
-        tasksReviewed: tasks.length,
+        // The API only uses `uncompletedTasks` (titles/names) and `tasksCompletedCount`
+        uncompletedTasks: uncompletedTaskTitles, 
         tasksCompletedCount: completedTaskIds.length,
+        totalHoursPlanned: 0, // Not tracked in this form, assuming a default 0 or removal later
         totalHoursSpent: parseFloat(hoursSpent),
         aiSummary,
       };

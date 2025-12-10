@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcryptjs from "bcryptjs";
+import crypto from "crypto"; // <-- CRITICAL FIX: Added for password reset token generation
 
 const UserSchema = new mongoose.Schema(
   {
@@ -17,6 +18,7 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
     name: String,
     password: {
@@ -74,17 +76,13 @@ const UserSchema = new mongoose.Schema(
     subscriptionRenewalDate: Date,
     subscriptionPaymentId: String,
 
+    // Credit tracking
     aiCredits: {
       type: Number,
       default: 5, // Free tier gets 5 credits
     },
     creditMonthResetDate: Date,
-    lastCreditPurchaseDate: Date,
-    lastCreditPurchaseAmount: Number,
-    lastCreditPaymentId: String,
 
-    // For Pro plan monthly reset tracking
-    creditMonthResetDate: Date,
     // Purchase tracking
     lastCreditPurchaseDate: Date,
     lastCreditPurchaseAmount: Number,
@@ -102,11 +100,11 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
-    // Daily Blueprint - FIXED to persist for 24h
+    // Daily Blueprint - Embedded Document
     dailyBlueprint: {
       type: {
         date: String,
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        // Removed redundant userId reference
         routines: [
           {
             id: String,
@@ -154,6 +152,7 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
     // Academic Profile
     academicProfile: {
       institution: String,
@@ -184,7 +183,7 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ✅ FIXED: Hash password before saving
+// Mongoose Middleware to hash password before saving
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
@@ -196,5 +195,22 @@ UserSchema.pre("save", async function (next) {
     next(error);
   }
 });
+
+// ✅ ADDED: Helper method to create a password reset token
+UserSchema.methods.createPasswordResetToken = function () {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    // Hash the token and save it to the database
+    this.passwordResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    
+    // Set token expiration to 1 hour (3600000 milliseconds)
+    this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+    
+    // Return the unhashed token to be sent in the email
+    return resetToken;
+};
+
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);
