@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Loader2, Sparkles, Zap, BatteryCharging, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { dispatchCreditUpdate } from '@/components/CreditBadge';
+import { dispatchCreditUpdate } from '../../../components/CreditBadge';
 
 export default function AINotesPage() {
   const { data: session, status } = useSession();
