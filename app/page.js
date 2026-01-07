@@ -44,11 +44,7 @@ export default function Home() {
       <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
         <div className={`max-w-6xl w-full text-center space-y-12 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-solid)] bg-opacity-10 border border-[var(--accent-solid)] border-opacity-20">
-            <Star className="h-4 w-4 text-[var(--accent-solid)]" />
-            <span className="text-sm font-medium text-[var(--accent-solid)]">Trusted by 10,000+ Students</span>
-          </div>
+         
 
           {/* Main Heading */}
           <div className="space-y-6">
@@ -79,16 +75,7 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Social Proof */}
-          <div className="flex items-center justify-center gap-2 text-sm text-[var(--text-tertiary)] pt-4">
-            <div className="flex -space-x-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 border-2 border-[var(--background)]"></div>
-              ))}
-            </div>
-            <span className="ml-2">Join thousands of successful students</span>
-          </div>
-        </div>
+        
       </section>
 
       {/* Features Section */}
@@ -190,9 +177,6 @@ export default function Home() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] bg-clip-text text-transparent">
             Ready to Transform Your Study Life?
           </h2>
-          <p className="text-xl text-[var(--text-secondary)]">
-            Join thousands of students who've already discovered the power of intelligent planning
-          </p>
           <Link
             href="/auth"
             className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent-solid)] text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
